@@ -2,8 +2,8 @@ import { Chip } from '@mui/material';
 import type { DocumentStatus } from '../types/document';
 
 const statusStyles: Record<DocumentStatus, { color: string; backgroundColor: string }> = {
-  Создан: { color: '#17623c', backgroundColor: '#e6f5ed' },
-  Согласован: { color: '#245c9f', backgroundColor: '#e8f1fb' },
+  Создан: { color: '#245c9f', backgroundColor: '#e8f1fb' },
+  Согласован: { color: '#17623c', backgroundColor: '#e6f5ed' },
   Отклонен: { color: '#a93636', backgroundColor: '#fdebec' },
 };
 

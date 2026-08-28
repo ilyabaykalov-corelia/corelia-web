@@ -100,7 +100,6 @@ export function HomePage() {
     created: items.filter((document) => document.approvalStatus === 'CREATED').length,
     approved: items.filter((document) => document.approvalStatus === 'APPROVED').length,
     rejected: items.filter((document) => document.approvalStatus === 'REJECTED').length,
-    withAttachments: items.filter((document) => document.attachments.length > 0).length,
   }), [items]);
 
   const applyFilters = () => {
@@ -137,9 +136,9 @@ export function HomePage() {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5 }}>
         <Metric title="Всего в реестре" value={total || items.length} icon={DescriptionOutlinedIcon} color="#2875c7" background="#e8f1fb" />
-        <Metric title="Созданы" value={counters.created} icon={TaskAltOutlinedIcon} color="#17623c" background="#e6f5ed" />
-        <Metric title="Согласованы" value={counters.approved} icon={FactCheckOutlinedIcon} color="#245c9f" background="#e8f1fb" />
-        <Metric title="С вложениями" value={counters.withAttachments} icon={EventAvailableOutlinedIcon} color="#8b5b12" background="#fff2d6" />
+        <Metric title="Созданы" value={counters.created} icon={TaskAltOutlinedIcon} color="#245c9f" background="#e8f1fb" />
+        <Metric title="Согласованы" value={counters.approved} icon={FactCheckOutlinedIcon} color="#17623c" background="#e6f5ed" />
+        <Metric title="Отклонены" value={counters.rejected} icon={EventAvailableOutlinedIcon} color="#a93636" background="#fdebec" />
       </Box>
 
       {/* <Panel title="Поиск договоров"> */}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType, type PropsWithChildren } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -6,16 +6,12 @@ import {
   Button,
   CircularProgress,
   MenuItem,
-  Paper,
   Stack,
   TextField,
   Typography,
-  type PaperProps,
-  type SvgIconProps,
 } from '@mui/material';
 import {
   ArrowDownward as ArrowDownwardIcon,
-  ArrowForwardIos as ArrowForwardIosIcon,
   ArrowUpward as ArrowUpwardIcon,
   DescriptionOutlined as DescriptionOutlinedIcon,
   EventAvailableOutlined as EventAvailableOutlinedIcon,
@@ -24,13 +20,14 @@ import {
   Search as SearchIcon,
   TaskAltOutlined as TaskAltOutlinedIcon,
 } from '@mui/icons-material';
+import { MetricCard } from '../components/common/MetricCard';
+import { SectionPanel } from '../components/common/SectionPanel';
 import { DocumentStatusChip } from '../components/DocumentStatusChip';
 import { fetchDocuments, fetchDocumentTypes, setFilters } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { ApprovalStatus, DocumentRecord, DocumentSearchRequest } from '../types/document';
 import { formatDate } from '../utils/format';
 
-type IconComponent = ComponentType<SvgIconProps>;
 type SortField = 'documentType' | 'contractDate' | 'contractNumber' | 'snils' | 'documentStatus';
 type SortDirection = 'asc' | 'desc';
 
@@ -51,37 +48,6 @@ const sortColumns: Array<{ field: SortField; label: string }> = [
 const registryLimit = 1000;
 const fallbackDocumentType = { id: 'PDS_CONTRACT', name: 'Договор ПДС' };
 const tableGridTemplate = 'minmax(160px, .8fr) minmax(180px, 1fr) 130px minmax(150px, .8fr) 118px';
-
-function Panel({ title, action, onAction, children, sx }: PropsWithChildren<{ title: string; action?: string; onAction?: () => void; sx?: PaperProps['sx'] }>) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2, minWidth: 0, ...sx }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.35 }}>
-        <Typography variant="h6">{title}</Typography>
-        {action && (
-          <Button color="secondary" size="small" endIcon={<ArrowForwardIosIcon sx={{ fontSize: 11 }} />} onClick={onAction} sx={{ fontSize: 11.5, minWidth: 0, px: 0.5 }}>
-            {action}
-          </Button>
-        )}
-      </Stack>
-      {children}
-    </Paper>
-  );
-}
-
-function Metric({ title, value, caption, icon: Icon, color, background }: { title: string; value: number | string; caption?: string; icon: IconComponent; color: string; background: string }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 1.6, display: 'flex', alignItems: 'center', gap: 1.4 }}>
-      <Box sx={{ width: 46, height: 46, borderRadius: '50%', bgcolor: background, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-        <Icon sx={{ fontSize: 25 }} />
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography color="text.secondary" sx={{ fontSize: 11.5 }}>{title}</Typography>
-        <Typography sx={{ fontSize: 25, lineHeight: 1.25, fontWeight: 600 }}>{value}</Typography>
-        <Typography color="text.secondary" sx={{ fontSize: 11.2 }}>{caption}</Typography>
-      </Box>
-    </Paper>
-  );
-}
 
 function SortHeader({
   field,
@@ -141,8 +107,8 @@ export function DocumentsListPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection | null>(null);
 
   useEffect(() => {
-    if (items.length === 0) void dispatch(fetchDocuments({ ...filters, limit: registryLimit }));
-  }, [dispatch, filters, items.length]);
+    void dispatch(fetchDocuments({ ...filters, limit: registryLimit }));
+  }, [dispatch]);
 
   useEffect(() => {
     if (documentTypes.length === 0) void dispatch(fetchDocumentTypes());
@@ -154,7 +120,6 @@ export function DocumentsListPage() {
     created: items.filter((document) => document.approvalStatus === 'CREATED').length,
     approved: items.filter((document) => document.approvalStatus === 'APPROVED').length,
     rejected: items.filter((document) => document.approvalStatus === 'REJECTED').length,
-    withAttachments: items.filter((document) => document.attachments.length > 0).length,
   }), [items]);
 
   const sortedItems = useMemo(() => {
@@ -229,13 +194,13 @@ export function DocumentsListPage() {
       </Stack>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5 }}>
-        <Metric title="Всего в реестре" value={total || items.length} icon={DescriptionOutlinedIcon} color="#2875c7" background="#e8f1fb" />
-        <Metric title="Созданы" value={counters.created} icon={TaskAltOutlinedIcon} color="#17623c" background="#e6f5ed" />
-        <Metric title="Согласованы" value={counters.approved} icon={FactCheckOutlinedIcon} color="#245c9f" background="#e8f1fb" />
-        <Metric title="С вложениями" value={counters.withAttachments} icon={EventAvailableOutlinedIcon} color="#8b5b12" background="#fff2d6" />
+        <MetricCard title="Всего в реестре" value={total || items.length} icon={DescriptionOutlinedIcon} color="#2875c7" background="#e8f1fb" />
+        <MetricCard title="Созданы" value={counters.created} icon={TaskAltOutlinedIcon} color="#245c9f" background="#e8f1fb" />
+        <MetricCard title="Согласованы" value={counters.approved} icon={FactCheckOutlinedIcon} color="#17623c" background="#e6f5ed" />
+        <MetricCard title="Отклонены" value={counters.rejected} icon={EventAvailableOutlinedIcon} color="#a93636" background="#fdebec" />
       </Box>
 
-      <Panel title="Фильтры">
+      <SectionPanel title="Фильтры">
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'minmax(170px, .8fr) minmax(220px, 1.1fr) repeat(3, minmax(145px, .7fr)) auto' }, gap: 1.2, alignItems: 'center' }}>
           <TextField select size="small" label="Вид документа" value={documentTypeId} onChange={(event) => setDocumentTypeId(event.target.value)}>
             <MenuItem value="">Все виды</MenuItem>
@@ -258,11 +223,15 @@ export function DocumentsListPage() {
             <Button variant="outlined" color="inherit" onClick={resetFilters}>Сбросить</Button>
           </Stack>
         </Box>
-      </Panel>
+      </SectionPanel>
 
       {error && <Alert severity="error">{error}</Alert>}
 
-      <Panel title="Документы" action="Обновить" onAction={() => { void dispatch(fetchDocuments({ ...filters, limit: registryLimit })); }} sx={{ minHeight: 312 }}>
+      <SectionPanel
+        title="Документы"
+        action={<Button color="secondary" size="small" onClick={() => { void dispatch(fetchDocuments({ ...filters, limit: registryLimit })); }} sx={{ fontSize: 11.5, minWidth: 0, px: 0.5 }}>Обновить</Button>}
+        sx={{ minHeight: 312 }}
+      >
         {loading && sortedItems.length === 0 ? (
           <Stack alignItems="center" sx={{ py: 7 }}><CircularProgress size={28} /></Stack>
         ) : sortedItems.length === 0 ? (
@@ -317,7 +286,7 @@ export function DocumentsListPage() {
             ))}
           </Stack>
         )}
-      </Panel>
+      </SectionPanel>
     </Stack>
   );
 }

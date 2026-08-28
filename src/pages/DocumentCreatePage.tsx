@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent, type PropsWithChildren } from 'react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -6,15 +6,11 @@ import {
   Breadcrumbs,
   Button,
   ButtonBase,
-  Chip,
-  IconButton,
-  LinearProgress,
   Link,
   MenuItem,
   Paper,
   Stack,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import {
@@ -23,19 +19,22 @@ import {
   AttachFile as AttachFileIcon,
   Check as CheckIcon,
   CloudUploadOutlined as CloudUploadOutlinedIcon,
-  Close as CloseIcon,
   InfoOutlined as InfoOutlinedIcon,
   PriorityHigh as PriorityHighIcon,
   SaveOutlined as SaveOutlinedIcon,
-  VisibilityOutlined as VisibilityOutlinedIcon,
 } from '@mui/icons-material';
-import { DocumentFileIcon, getSupportedFileKind } from '../components/DocumentFileIcon';
+import { FormField } from '../components/common/FormField';
+import { SectionPanel } from '../components/common/SectionPanel';
+import { SummaryRow } from '../components/common/SummaryRow';
+import { getSupportedFileKind } from '../components/DocumentFileIcon';
 import { FilePreviewDialog } from '../components/FilePreviewDialog';
+import { LocalDocumentFilesList } from '../features/documents/components/DocumentFilesList';
+import { formatSnils, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
 import { createDocument, fetchDocumentTypes, uploadDocumentAttachments } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { CreateDocumentRequest, DocumentType } from '../types/document';
 import { fileToAttachmentUpload } from '../utils/file';
-import { formatDate, formatFileSize, todayIsoDate } from '../utils/format';
+import { formatDate, todayIsoDate } from '../utils/format';
 
 const maxFileSize = 100 * 1024 * 1024;
 const supportedFormats = '.pdf,.docx,.xlsx';
@@ -50,75 +49,6 @@ const initialForm: CreateDocumentRequest = {
 
 const steps = ['Атрибуты договора', 'Вложения', 'Подтверждение'];
 const fieldProps = { fullWidth: true, size: 'small' as const };
-const snilsPattern = /^\d{3}-\d{3}-\d{3} \d{2}$/;
-
-const formatSnils = (value: string) => {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  const parts = [
-    digits.slice(0, 3),
-    digits.slice(3, 6),
-    digits.slice(6, 9),
-    digits.slice(9, 11),
-  ].filter(Boolean);
-
-  if (parts.length <= 1) return parts[0] ?? '';
-  if (parts.length === 2) return `${parts[0]}-${parts[1]}`;
-  if (parts.length === 3) return `${parts[0]}-${parts[1]}-${parts[2]}`;
-  return `${parts[0]}-${parts[1]}-${parts[2]} ${parts[3]}`;
-};
-
-function FormField({ label, required, children }: PropsWithChildren<{ label: string; required?: boolean }>) {
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <Typography sx={{ fontSize: 11.5, fontWeight: 500, mb: 0.55 }}>
-        {label} {required && <Box component="span" sx={{ color: '#d63c3c' }}>*</Box>}
-      </Typography>
-      {children}
-    </Box>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value?: string }) {
-  return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '210px minmax(0, 1fr)' }, gap: { xs: 0.35, sm: 1.5 }, py: 0.75, borderBottom: 1, borderColor: '#edf0f2' }}>
-      <Typography color="text.secondary" sx={{ fontSize: 11.5 }}>{label}</Typography>
-      <Typography sx={{ fontSize: 12.5, overflowWrap: 'anywhere' }}>{value || '—'}</Typography>
-    </Box>
-  );
-}
-
-function FileRows({ files, onPreview, onRemove }: { files: File[]; onPreview: (file: File) => void; onRemove?: (index: number) => void }) {
-  return (
-    <Stack>
-      {files.map((file, index) => {
-        const kind = getSupportedFileKind(file.name);
-        return (
-          <Stack key={`${file.name}-${file.lastModified}`} direction="row" alignItems="center" spacing={1.2} sx={{ py: 1.2, borderTop: index === 0 ? 0 : 1, borderColor: 'divider' }}>
-            <DocumentFileIcon fileName={file.name} size={30} />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography noWrap sx={{ fontSize: 12.5, fontWeight: 500 }}>{file.name}</Typography>
-              <Typography color="text.secondary" sx={{ fontSize: 10.8 }}>{kind?.toUpperCase()} · {formatFileSize(file.size)}</Typography>
-            </Box>
-            {onRemove && (
-              <Box sx={{ width: { xs: 56, sm: 145 }, display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.8 }}>
-                <LinearProgress variant="determinate" value={100} sx={{ flex: 1, height: 7, borderRadius: 3, bgcolor: '#e6ece8' }} />
-                <Typography color="text.secondary" sx={{ fontSize: 10.5 }}>100%</Typography>
-              </Box>
-            )}
-            <Tooltip title="Просмотреть файл">
-              <IconButton size="small" aria-label={`Просмотреть ${file.name}`} onClick={() => onPreview(file)}><VisibilityOutlinedIcon sx={{ fontSize: 19 }} /></IconButton>
-            </Tooltip>
-            {onRemove && (
-              <Tooltip title="Удалить файл">
-                <IconButton size="small" aria-label={`Удалить ${file.name}`} onClick={() => onRemove(index)}><CloseIcon sx={{ fontSize: 18 }} /></IconButton>
-              </Tooltip>
-            )}
-          </Stack>
-        );
-      })}
-    </Stack>
-  );
-}
 
 export function DocumentCreatePage() {
   const navigate = useNavigate();
@@ -180,18 +110,8 @@ export function DocumentCreatePage() {
     addFiles(event.dataTransfer.files);
   };
 
-  const validateAttributes = () => {
-    if (!form.documentTypeId) return 'Выберите вид документа';
-    if (!form.contractDate) return 'Укажите дату договора';
-    if (!form.contractNumber.trim()) return 'Заполните номер договора';
-    if (!form.snils.trim()) return 'Заполните СНИЛС';
-    if (form.contractNumber.trim().length > 64) return 'Номер договора не должен превышать 64 символа';
-    if (!snilsPattern.test(form.snils.trim())) return 'СНИЛС должен быть в формате 000-000-000 00';
-    return null;
-  };
-
   const moveNext = () => {
-    const stepError = activeStep === 0 ? validateAttributes() : null;
+    const stepError = activeStep === 0 ? validateDocumentAttributes(form) : null;
     if (stepError) {
       setValidationError(stepError);
       return;
@@ -201,7 +121,7 @@ export function DocumentCreatePage() {
   };
 
   const handleSave = async () => {
-    const formError = validateAttributes();
+    const formError = validateDocumentAttributes(form);
     if (formError) {
       setValidationError(formError);
       return;
@@ -239,7 +159,7 @@ export function DocumentCreatePage() {
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', overflowX: 'auto', pb: 0.7 }}>
           {steps.map((step, index) => {
             const completed = index < activeStep;
-            const warning = completed && index === 0 && Boolean(validateAttributes());
+            const warning = completed && index === 0 && Boolean(validateDocumentAttributes(form));
             const statusLabel = index === activeStep ? 'текущий шаг' : warning ? 'требует внимания' : completed ? 'завершен' : 'не начат';
 
             return (
@@ -276,8 +196,7 @@ export function DocumentCreatePage() {
         {(validationError || error) && <Alert severity="error">{validationError || error}</Alert>}
 
         {activeStep === 0 && (
-          <Paper variant="outlined" sx={{ p: 2, minWidth: 0 }}>
-            <Typography variant="h6" sx={{ mb: 1.6 }}>Атрибуты карточки</Typography>
+          <SectionPanel title="Атрибуты карточки">
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
               <FormField label="Вид документа" required>
                 <TextField {...fieldProps} select value={form.documentTypeId} onChange={(event) => updateField('documentTypeId', event.target.value)}>
@@ -294,15 +213,11 @@ export function DocumentCreatePage() {
                 <TextField {...fieldProps} value={form.snils} onChange={(event) => updateSnils(event.target.value)} placeholder="Введите СНИЛС" inputProps={{ maxLength: 14, inputMode: 'numeric' }} />
               </FormField>
             </Box>
-          </Paper>
+          </SectionPanel>
         )}
 
         {activeStep === 1 && (
-          <Paper variant="outlined" sx={{ p: 2, minWidth: 0 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.6 }}>
-              <Typography variant="h6">Вложения</Typography>
-              <Chip label={files.length} size="small" sx={{ height: 23 }} />
-            </Stack>
+          <SectionPanel title="Вложения" count={files.length}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: files.length > 0 ? 'minmax(0, 1.15fr) minmax(360px, .85fr)' : '1fr' }, gap: 2 }}>
               <Box>
                 <Box
@@ -332,32 +247,27 @@ export function DocumentCreatePage() {
               {files.length > 0 && (
                 <Paper variant="outlined" sx={{ p: 1.5, alignSelf: 'stretch' }}>
                   <Typography sx={{ fontSize: 12.5, fontWeight: 600, mb: 0.5 }}>Файлы к загрузке</Typography>
-                  <FileRows files={files} onPreview={setPreviewFile} onRemove={(index) => setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))} />
+                  <LocalDocumentFilesList files={files} onPreview={setPreviewFile} onRemove={(index) => setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))} />
                   <Alert icon={<InfoOutlinedIcon fontSize="inherit" />} severity="info" sx={{ mt: 1.5, bgcolor: '#f2f7fd', color: '#4f6d95', border: 1, borderColor: '#e1ebf7', '& .MuiAlert-message': { fontSize: 11.5 } }}>
                     Нажмите на значок глаза, чтобы открыть содержимое файла
                   </Alert>
                 </Paper>
               )}
             </Box>
-          </Paper>
+          </SectionPanel>
         )}
 
         {activeStep === 2 && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.35fr) minmax(340px, .8fr)' }, gap: 2, alignItems: 'start' }}>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ mb: 1 }}>Карточка договора</Typography>
+            <SectionPanel title="Карточка договора">
               <SummaryRow label="Вид документа" value={selectedDocumentType.name} />
               <SummaryRow label="Дата договора" value={formatDate(form.contractDate)} />
               <SummaryRow label="Номер договора" value={form.contractNumber} />
               <SummaryRow label="СНИЛС" value={form.snils} />
-            </Paper>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-                <Typography variant="h6">Вложения</Typography>
-                <Chip label={files.length} size="small" sx={{ height: 23 }} />
-              </Stack>
-              {files.length > 0 ? <FileRows files={files} onPreview={setPreviewFile} /> : <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center', fontSize: 12.5 }}>Вложения не добавлены</Typography>}
-            </Paper>
+            </SectionPanel>
+            <SectionPanel title="Вложения" count={files.length}>
+              {files.length > 0 ? <LocalDocumentFilesList files={files} onPreview={setPreviewFile} /> : <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center', fontSize: 12.5 }}>Вложения не добавлены</Typography>}
+            </SectionPanel>
           </Box>
         )}
 
