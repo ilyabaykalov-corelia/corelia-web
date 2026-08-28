@@ -14,11 +14,11 @@ import {
   ArrowDownward as ArrowDownwardIcon,
   ArrowUpward as ArrowUpwardIcon,
   DescriptionOutlined as DescriptionOutlinedIcon,
-  EventAvailableOutlined as EventAvailableOutlinedIcon,
   FactCheckOutlined as FactCheckOutlinedIcon,
   NoteAddOutlined as NoteAddOutlinedIcon,
   Search as SearchIcon,
   TaskAltOutlined as TaskAltOutlinedIcon,
+  WarningAmberOutlined as WarningAmberOutlinedIcon,
 } from '@mui/icons-material';
 import { MetricCard } from '../components/common/MetricCard';
 import { SectionPanel } from '../components/common/SectionPanel';
@@ -105,6 +105,14 @@ export function DocumentsListPage() {
   const [dateTo, setDateTo] = useState(filters.dateTo ?? '');
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection | null>(null);
+
+  useEffect(() => {
+    setDocumentTypeId(filters.documentTypeId ?? '');
+    setQuery(filters.query ?? '');
+    setStatus((filters.status as ApprovalStatus | '') ?? '');
+    setDateFrom(filters.dateFrom ?? '');
+    setDateTo(filters.dateTo ?? '');
+  }, [filters]);
 
   useEffect(() => {
     void dispatch(fetchDocuments({ ...filters, limit: registryLimit }));
@@ -197,7 +205,7 @@ export function DocumentsListPage() {
         <MetricCard title="Всего в реестре" value={total || items.length} icon={DescriptionOutlinedIcon} color="#2875c7" background="#e8f1fb" />
         <MetricCard title="Созданы" value={counters.created} icon={TaskAltOutlinedIcon} color="#245c9f" background="#e8f1fb" />
         <MetricCard title="Согласованы" value={counters.approved} icon={FactCheckOutlinedIcon} color="#17623c" background="#e6f5ed" />
-        <MetricCard title="Отклонены" value={counters.rejected} icon={EventAvailableOutlinedIcon} color="#a93636" background="#fdebec" />
+        <MetricCard title="Отклонены" value={counters.rejected} icon={WarningAmberOutlinedIcon} color="#a93636" background="#fdebec" />
       </Box>
 
       <SectionPanel title="Фильтры">
