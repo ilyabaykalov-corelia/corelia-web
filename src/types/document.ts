@@ -1,0 +1,76 @@
+export type ApprovalStatus = 'CREATED' | 'APPROVED' | 'REJECTED';
+export type ApprovalDecision = Exclude<ApprovalStatus, 'CREATED'>;
+export type DocumentStatus = 'Создан' | 'Согласован' | 'Отклонен';
+
+export interface DocumentType {
+  id: string;
+  name: string;
+}
+
+export interface Attachment {
+  id: string;
+  documentId: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
+}
+
+export interface DocumentRecord {
+  id: string;
+  documentTypeId: string;
+  documentType: string;
+  contractDate: string;
+  contractNumber: string;
+  snils: string;
+  approvalStatus: ApprovalStatus;
+  documentStatus: DocumentStatus;
+  processInstanceId?: string;
+  attachments: Attachment[];
+}
+
+export interface DocumentSearchRequest {
+  documentTypeId?: string;
+  query?: string;
+  status?: ApprovalStatus | DocumentStatus | '';
+  dateFrom?: string;
+  dateTo?: string;
+  offset?: number;
+  limit?: number;
+}
+
+export interface DocumentSearchResponse {
+  items: DocumentRecord[];
+  total: number;
+}
+
+export interface DocumentTypesResponse {
+  items: DocumentType[];
+  total: number;
+}
+
+export interface CreateDocumentRequest {
+  documentTypeId: string;
+  contractDate: string;
+  contractNumber: string;
+  snils: string;
+}
+
+export interface UpdateDocumentRequest extends CreateDocumentRequest {}
+
+export interface DocumentApprovalRequest {
+  approvalStatus: ApprovalDecision;
+}
+
+export interface AttachmentUpload {
+  fileName: string;
+  contentType: string;
+  size: number;
+  contentBase64: string;
+}
+
+export interface CurrentUser {
+  id: string;
+  login: string;
+  fullName: string;
+}
