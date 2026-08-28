@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/tool
 import { documentsApi } from '../api/documents';
 import type {
   AttachmentUpload,
+  Attachment,
   CreateDocumentRequest,
   CurrentUser,
   DocumentApprovalRequest,
@@ -37,6 +38,29 @@ const initialState: DocumentsState = {
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Неизвестная ошибка');
 
+/**
+ * Добавляет документ в начало реестра или заменяет существующую запись с тем же id.
+ *
+ * @param items - Текущий список документов в Redux-состоянии.
+ * @param document - Документ, который нужно синхронизировать со списком.
+ * @returns `true`, если документ был добавлен как новая запись.
+ */
+const upsertDocument = (items: DocumentRecord[], document: DocumentRecord) => {
+  const itemIndex = items.findIndex((item) => item.id === document.id);
+  if (itemIndex >= 0) {
+    items[itemIndex] = document;
+    return false;
+  }
+
+  items.unshift(document);
+  return true;
+};
+
+/**
+ * Загружает страницу реестра документов с учетом фильтров через API-слой.
+ *
+ * @param filters - Фильтры поиска, дат, статуса и пагинации для реестра.
+ */
 export const fetchDocuments = createAsyncThunk('documents/fetchAll', async (filters: DocumentSearchRequest, api) => {
   try {
     return await documentsApi.search(filters);
@@ -45,6 +69,11 @@ export const fetchDocuments = createAsyncThunk('documents/fetchAll', async (filt
   }
 });
 
+/**
+ * Загружает одну карточку документа по идентификатору и сохраняет ее как текущий документ.
+ *
+ * @param id - Идентификатор документа из маршрута.
+ */
 export const fetchDocumentById = createAsyncThunk('documents/fetchById', async (id: string, api) => {
   try {
     return await documentsApi.getById(id);
@@ -53,6 +82,9 @@ export const fetchDocumentById = createAsyncThunk('documents/fetchById', async (
   }
 });
 
+/**
+ * Загружает профиль пользователя, отображаемый в оболочке приложения.
+ */
 export const fetchCurrentUser = createAsyncThunk('documents/fetchCurrentUser', async (_, api) => {
   try {
     return await documentsApi.getCurrentUser();
@@ -61,6 +93,9 @@ export const fetchCurrentUser = createAsyncThunk('documents/fetchCurrentUser', a
   }
 });
 
+/**
+ * Загружает доступные виды документов для форм создания и редактирования.
+ */
 export const fetchDocumentTypes = createAsyncThunk('documents/fetchDocumentTypes', async (_, api) => {
   try {
     return await documentsApi.getDocumentTypes();
@@ -69,6 +104,11 @@ export const fetchDocumentTypes = createAsyncThunk('documents/fetchDocumentTypes
   }
 });
 
+/**
+ * Создает карточку документа без вложений.
+ *
+ * @param payload - Валидированные атрибуты документа.
+ */
 export const createDocument = createAsyncThunk('documents/create', async (payload: CreateDocumentRequest, api) => {
   try {
     return await documentsApi.create(payload);
@@ -77,6 +117,11 @@ export const createDocument = createAsyncThunk('documents/create', async (payloa
   }
 });
 
+/**
+ * Обновляет редактируемые атрибуты карточки документа.
+ *
+ * @param args - Идентификатор целевого документа и payload обновления.
+ */
 export const updateDocument = createAsyncThunk(
   'documents/update',
   async ({ id, payload }: { id: string; payload: UpdateDocumentRequest }, api) => {
@@ -88,6 +133,11 @@ export const updateDocument = createAsyncThunk(
   },
 );
 
+/**
+ * Завершает согласование карточки документа.
+ *
+ * @param args - Идентификатор целевого документа и решение по согласованию.
+ */
 export const completeDocumentApproval = createAsyncThunk(
   'documents/completeApproval',
   async ({ id, payload }: { id: string; payload: DocumentApprovalRequest }, api) => {
@@ -99,6 +149,11 @@ export const completeDocumentApproval = createAsyncThunk(
   },
 );
 
+/**
+ * Загружает подготовленные payload-ы вложений и обновляет карточку документа после загрузки.
+ *
+ * @param args - Идентификатор целевого документа и файлы, преобразованные в API payload.
+ */
 export const uploadDocumentAttachments = createAsyncThunk(
   'documents/uploadAttachments',
   async ({ documentId, attachments }: { documentId: string; attachments: AttachmentUpload[] }, api) => {
@@ -110,6 +165,19 @@ export const uploadDocumentAttachments = createAsyncThunk(
     }
   },
 );
+
+/**
+ * Скачивает сохраненное вложение через Redux, чтобы React-компоненты не обращались к API-слою напрямую.
+ *
+ * @param attachment - Метаданные вложения для построения API-запроса и имени результирующего файла.
+ */
+export const downloadDocumentAttachment = createAsyncThunk('documents/downloadAttachment', async (attachment: Attachment, api) => {
+  try {
+    return await documentsApi.downloadAttachment(attachment);
+  } catch (error) {
+    return api.rejectWithValue(errorMessage(error));
+  }
+});
 
 const documentsSlice = createSlice({
   name: 'documents',
@@ -173,6 +241,7 @@ const documentsSlice = createSlice({
       .addCase(createDocument.fulfilled, (state, action) => {
         state.saving = false;
         state.currentItem = action.payload;
+        if (upsertDocument(state.items, action.payload)) state.total += 1;
       })
       .addCase(createDocument.rejected, (state, action) => {
         state.saving = false;
@@ -185,8 +254,7 @@ const documentsSlice = createSlice({
       .addCase(updateDocument.fulfilled, (state, action) => {
         state.saving = false;
         state.currentItem = action.payload;
-        const itemIndex = state.items.findIndex((item) => item.id === action.payload.id);
-        if (itemIndex >= 0) state.items[itemIndex] = action.payload;
+        upsertDocument(state.items, action.payload);
       })
       .addCase(updateDocument.rejected, (state, action) => {
         state.saving = false;
@@ -199,8 +267,7 @@ const documentsSlice = createSlice({
       .addCase(completeDocumentApproval.fulfilled, (state, action) => {
         state.saving = false;
         state.currentItem = action.payload;
-        const itemIndex = state.items.findIndex((item) => item.id === action.payload.id);
-        if (itemIndex >= 0) state.items[itemIndex] = action.payload;
+        upsertDocument(state.items, action.payload);
       })
       .addCase(completeDocumentApproval.rejected, (state, action) => {
         state.saving = false;
@@ -217,6 +284,7 @@ const documentsSlice = createSlice({
             action.payload.processInstanceId ??
             (state.currentItem?.id === action.payload.id ? state.currentItem.processInstanceId : undefined),
         };
+        upsertDocument(state.items, state.currentItem);
       })
       .addCase(uploadDocumentAttachments.rejected, (state, action) => {
         state.saving = false;

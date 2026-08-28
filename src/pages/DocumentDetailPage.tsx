@@ -5,7 +5,6 @@ import {
   Box,
   Breadcrumbs,
   Button,
-  Chip,
   CircularProgress,
   IconButton,
   Link,
@@ -18,84 +17,41 @@ import {
   Tab,
   Tabs,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import {
   ArrowForward as ArrowForwardIcon,
   CheckCircle as CheckCircleIcon,
   Close as CloseIcon,
-  DownloadOutlined as DownloadOutlinedIcon,
   EditOutlined as EditOutlinedIcon,
   ExpandMore as ExpandMoreIcon,
   MoreVert as MoreVertIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
   SaveOutlined as SaveOutlinedIcon,
-  VisibilityOutlined as VisibilityOutlinedIcon,
   WarningAmberOutlined as WarningAmberOutlinedIcon,
 } from '@mui/icons-material';
-import { documentsApi } from '../api/documents';
-import { DocumentFileIcon } from '../components/DocumentFileIcon';
+import { FormField } from '../components/common/FormField';
+import { SectionPanel } from '../components/common/SectionPanel';
 import { FilePreviewDialog } from '../components/FilePreviewDialog';
 import { DocumentStatusChip } from '../components/DocumentStatusChip';
-import { clearCurrentDocument, completeDocumentApproval, fetchDocumentById, fetchDocumentTypes, updateDocument } from '../store/documentsSlice';
+import { AttachmentDocumentFilesList } from '../features/documents/components/DocumentFilesList';
+import { formatSnils, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
+import { clearCurrentDocument, completeDocumentApproval, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, updateDocument } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { ApprovalDecision, ApprovalStatus, Attachment, DocumentType, UpdateDocumentRequest } from '../types/document';
-import { formatDate, formatFileSize } from '../utils/format';
+import { formatDate } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
 type AttributeField = keyof UpdateDocumentRequest;
 
 const fallbackDocumentType: DocumentType = { id: 'PDS_CONTRACT', name: 'Договор ПДС' };
 const fieldProps = { fullWidth: true, size: 'small' as const };
-const snilsPattern = /^\d{3}-\d{3}-\d{3} \d{2}$/;
-
-const formatSnils = (value: string) => {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  const parts = [
-    digits.slice(0, 3),
-    digits.slice(3, 6),
-    digits.slice(6, 9),
-    digits.slice(9, 11),
-  ].filter(Boolean);
-
-  if (parts.length <= 1) return parts[0] ?? '';
-  if (parts.length === 2) return `${parts[0]}-${parts[1]}`;
-  if (parts.length === 3) return `${parts[0]}-${parts[1]}-${parts[2]}`;
-  return `${parts[0]}-${parts[1]}-${parts[2]} ${parts[3]}`;
-};
-
-function SectionPanel({ title, count, action, children }: PropsWithChildren<{ title: string; count?: number; action?: string }>) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2, minWidth: 0 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.6 }}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Typography variant="h6">{title}</Typography>
-          {count !== undefined && <Chip label={count} variant="outlined" size="small" sx={{ height: 25, minWidth: 25, borderRadius: 12, fontSize: 11 }} />}
-        </Stack>
-        {action && <Typography color="secondary.main" sx={{ fontSize: 11.5, cursor: 'pointer' }}>{action}</Typography>}
-      </Stack>
-      {children}
-    </Paper>
-  );
-}
 
 function AttributeRow({ label, children }: PropsWithChildren<{ label: string }>) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '190px minmax(0, 1fr)' }, gap: { xs: 0.35, sm: 1.5 }, minHeight: 34, alignItems: 'start', py: 0.25 }}>
       <Typography color="text.secondary" sx={{ fontSize: 11.5 }}>{label}</Typography>
       <Box sx={{ fontSize: 12.5, minWidth: 0, overflowWrap: 'anywhere' }}>{children || '—'}</Box>
-    </Box>
-  );
-}
-
-function FormField({ label, required, children }: PropsWithChildren<{ label: string; required?: boolean }>) {
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <Typography sx={{ fontSize: 11.5, fontWeight: 500, mb: 0.55 }}>
-        {label} {required && <Box component="span" sx={{ color: '#d63c3c' }}>*</Box>}
-      </Typography>
-      {children}
     </Box>
   );
 }
@@ -196,20 +152,10 @@ export function DocumentDetailPage() {
     updateField('snils', formatSnils(value));
   };
 
-  const validateAttributes = (payload: UpdateDocumentRequest) => {
-    if (!payload.documentTypeId) return 'Выберите вид документа';
-    if (!payload.contractDate) return 'Укажите дату договора';
-    if (!payload.contractNumber.trim()) return 'Заполните номер договора';
-    if (!payload.snils.trim()) return 'Заполните СНИЛС';
-    if (payload.contractNumber.trim().length > 64) return 'Номер договора не должен превышать 64 символа';
-    if (!snilsPattern.test(payload.snils.trim())) return 'СНИЛС должен быть в формате 000-000-000 00';
-    return null;
-  };
-
   const saveAttributes = async () => {
     if (!form) return;
 
-    const formError = validateAttributes(form);
+    const formError = validateDocumentAttributes(form);
     if (formError) {
       setValidationError(formError);
       return;
@@ -264,7 +210,7 @@ export function DocumentDetailPage() {
     setPreviewAttachmentId(attachment.id);
 
     try {
-      const file = await documentsApi.downloadAttachment(attachment);
+      const file = await dispatch(downloadDocumentAttachment(attachment)).unwrap();
       setPreviewFile(file);
     } catch (previewLoadError) {
       setPreviewError(previewLoadError instanceof Error ? previewLoadError.message : String(previewLoadError));
@@ -278,7 +224,7 @@ export function DocumentDetailPage() {
     setDownloadingAttachmentId(attachment.id);
 
     try {
-      const file = await documentsApi.downloadAttachment(attachment);
+      const file = await dispatch(downloadDocumentAttachment(attachment)).unwrap();
       const url = URL.createObjectURL(file);
       const link = window.document.createElement('a');
       link.href = url;
@@ -420,38 +366,13 @@ export function DocumentDetailPage() {
             {document.attachments.length === 0 ? (
               <Typography color="text.secondary" sx={{ fontSize: 12 }}>Файлы отсутствуют</Typography>
             ) : (
-              <Stack spacing={1.35}>
-                {document.attachments.map((attachment) => (
-                  <Stack key={attachment.id} direction="row" spacing={1} alignItems="center">
-                    <DocumentFileIcon fileName={attachment.fileName} size={28} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography noWrap sx={{ fontSize: 12 }}>{attachment.fileName}</Typography>
-                      <Typography noWrap color="text.secondary" sx={{ fontSize: 10.8 }}>{formatFileSize(attachment.size)} &nbsp;•&nbsp; {formatDate(attachment.uploadedAt)}</Typography>
-                    </Box>
-                    <Tooltip title="Просмотреть">
-                      <IconButton
-                        aria-label={`Просмотреть ${attachment.fileName}`}
-                        size="small"
-                        disabled={previewAttachmentId === attachment.id}
-                        onClick={() => void openAttachmentPreview(attachment)}
-                      >
-                        {previewAttachmentId === attachment.id ? <CircularProgress size={17} /> : <VisibilityOutlinedIcon sx={{ fontSize: 19 }} />}
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Скачать">
-                      <IconButton
-                        aria-label={`Скачать ${attachment.fileName}`}
-                        size="small"
-                        disabled={downloadingAttachmentId === attachment.id}
-                        onClick={() => void downloadAttachment(attachment)}
-                      >
-                        {downloadingAttachmentId === attachment.id ? <CircularProgress size={17} /> : <DownloadOutlinedIcon sx={{ fontSize: 19 }} />}
-                      </IconButton>
-                    </Tooltip>
-                    <IconButton aria-label="Действия с файлом" size="small"><MoreVertIcon sx={{ fontSize: 18 }} /></IconButton>
-                  </Stack>
-                ))}
-              </Stack>
+              <AttachmentDocumentFilesList
+                attachments={document.attachments}
+                loadingPreviewId={previewAttachmentId}
+                loadingDownloadId={downloadingAttachmentId}
+                onPreview={(attachment) => void openAttachmentPreview(attachment)}
+                onDownload={(attachment) => void downloadAttachment(attachment)}
+              />
             )}
           </SectionPanel>
 
@@ -471,7 +392,7 @@ export function DocumentDetailPage() {
           {/*   </Stack> */}
           {/* </SectionPanel> */}
 
-          <SectionPanel title="Доступ" action="Изменить">
+          <SectionPanel title="Доступ" action={<Typography color="secondary.main" sx={{ fontSize: 11.5, cursor: 'pointer' }}>Изменить</Typography>}>
             {[['Просмотр', '15'], ['Редактирование', '5'], ['Администрирование', '2']].map(([role, count]) => (
               <Stack key={role} direction="row" justifyContent="space-between" sx={{ py: 0.45 }}>
                 <Typography sx={{ fontSize: 11.8 }}>{role}</Typography>
