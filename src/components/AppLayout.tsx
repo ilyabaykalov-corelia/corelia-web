@@ -31,6 +31,7 @@ import {
   CollectionsBookmarkOutlined as CollectionsBookmarkOutlinedIcon,
   DescriptionOutlined as DescriptionOutlinedIcon,
   ExpandMore as ExpandMoreIcon,
+  FolderOutlined as FolderOutlinedIcon,
   HelpOutline as HelpOutlineIcon,
   HomeOutlined as HomeOutlinedIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
@@ -42,15 +43,17 @@ import {
   TaskAltOutlined as TaskAltOutlinedIcon,
 } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { fetchCurrentUser } from '../store/documentsSlice';
+import { fetchCurrentUser, fetchDocuments, fetchDocumentTypes, setFilters } from '../store/documentsSlice';
 import { logoutUser } from '../store/authSlice';
+import type { DocumentSearchRequest } from '../types/document';
 
 const expandedDrawerWidth = 240;
 const collapsedDrawerWidth = 72;
+const registryLimit = 1000;
 
 const primaryItems = [
   { label: 'Главная', icon: HomeOutlinedIcon, route: '/' },
-  { label: 'Документы', icon: DescriptionOutlinedIcon, route: '/documents' },
+  { label: 'Реестр документов', icon: DescriptionOutlinedIcon, route: '/documents' },
   { label: 'Задачи', icon: TaskAltOutlinedIcon, badge: 12 },
   { label: 'Поручения', icon: AssignmentOutlinedIcon },
   { label: 'Коллекции', icon: CollectionsBookmarkOutlinedIcon },
@@ -59,15 +62,28 @@ const primaryItems = [
   { label: 'Администрирование', icon: AdminPanelSettingsOutlinedIcon },
 ];
 
-const documentMenuItems = [
-  { label: 'Создать документ', route: '/documents/new' },
-  { label: 'Реестр документов', route: '/documents' },
-  { label: 'Недавние документы' },
-];
+/**
+ * Формирует фильтр реестра, ограниченный границами выбранного календарного года.
+ *
+ * @param year - Год, выбранный в боковом меню.
+ * @returns Фильтр с датами начала и конца года.
+ */
+const createYearFilter = (year: number, documentTypeId?: string): DocumentSearchRequest => ({
+  documentTypeId,
+  dateFrom: `${year}-01-01`,
+  dateTo: `${year}-12-31`,
+  offset: 0,
+  limit: registryLimit,
+});
 
 export function AppLayout({ children }: PropsWithChildren) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.documents.currentUser);
+  const documents = useAppSelector((state) => state.documents.items);
+  const registryYears = useAppSelector((state) => state.documents.registryYears);
+  const registryYearsByDocumentType = useAppSelector((state) => state.documents.registryYearsByDocumentType);
+  const documentTypes = useAppSelector((state) => state.documents.documentTypes);
+  const filters = useAppSelector((state) => state.documents.filters);
   const authUser = useAppSelector((state) => state.auth.user);
   const location = useLocation();
   const navigate = useNavigate();
@@ -75,15 +91,27 @@ export function AppLayout({ children }: PropsWithChildren) {
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedDocumentTypeId, setExpandedDocumentTypeId] = useState<string | null>(null);
   const documentsSection = location.pathname.startsWith('/documents');
   const [documentsMenuOpen, setDocumentsMenuOpen] = useState(documentsSection);
   const sidebarCollapsed = desktop && collapsed;
   const drawerWidth = sidebarCollapsed ? collapsedDrawerWidth : expandedDrawerWidth;
   const displayUser = authUser ?? user;
+  const hasRegistryDocuments = registryYears.length > 0;
+  const activeRegistryYear = registryYears.find((year) => filters.dateFrom === `${year}-01-01` && filters.dateTo === `${year}-12-31`);
+  const allDocumentsActive = location.pathname === '/documents' && !filters.documentTypeId && activeRegistryYear === undefined;
 
   useEffect(() => {
     if (!user) void dispatch(fetchCurrentUser());
   }, [dispatch, user]);
+
+  useEffect(() => {
+    if (documents.length === 0) void dispatch(fetchDocuments({ offset: 0, limit: registryLimit }));
+  }, [dispatch, documents.length]);
+
+  useEffect(() => {
+    if (documentTypes.length === 0) void dispatch(fetchDocumentTypes());
+  }, [dispatch, documentTypes.length]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -98,14 +126,46 @@ export function AppLayout({ children }: PropsWithChildren) {
     navigate(route);
   };
 
-  const toggleDocumentsMenu = () => {
-    if (sidebarCollapsed) {
-      setCollapsed(false);
-      setDocumentsMenuOpen(true);
+  const openRegistry = () => {
+    const nextFilters: DocumentSearchRequest = { offset: 0, limit: registryLimit };
+    setExpandedDocumentTypeId(null);
+    dispatch(setFilters(nextFilters));
+    void dispatch(fetchDocuments(nextFilters));
+    if (location.pathname !== '/documents') navigate('/documents');
+  };
+
+  const applyRegistryYear = (year: number, documentTypeId?: string) => {
+    const nextFilters = createYearFilter(year, documentTypeId);
+    dispatch(setFilters(nextFilters));
+    void dispatch(fetchDocuments(nextFilters));
+    if (location.pathname !== '/documents') navigate('/documents');
+  };
+
+  const applyDocumentType = (documentTypeId: string) => {
+    const nextFilters: DocumentSearchRequest = { documentTypeId, offset: 0, limit: registryLimit };
+    dispatch(setFilters(nextFilters));
+    void dispatch(fetchDocuments(nextFilters));
+    if (location.pathname !== '/documents') navigate('/documents');
+  };
+
+  const toggleDocumentType = (documentTypeId: string) => {
+    if (expandedDocumentTypeId === documentTypeId) {
+      setExpandedDocumentTypeId(null);
       return;
     }
 
-    setDocumentsMenuOpen((current) => !current);
+    setExpandedDocumentTypeId(documentTypeId);
+    applyDocumentType(documentTypeId);
+  };
+
+  const toggleDocumentsMenu = () => {
+    if (sidebarCollapsed) {
+      setCollapsed(false);
+      setDocumentsMenuOpen(hasRegistryDocuments);
+      return;
+    }
+
+    setDocumentsMenuOpen((current) => hasRegistryDocuments && !current);
   };
 
   const toggleSidebar = () => {
@@ -171,25 +231,62 @@ export function AppLayout({ children }: PropsWithChildren) {
                       {item.badge}
                     </Box>
                   )}
-                  {!sidebarCollapsed && item.route === '/documents' && (
+                  {!sidebarCollapsed && item.route === '/documents' && hasRegistryDocuments && (
                     <ExpandMoreIcon sx={{ fontSize: 17, transform: documentsMenuOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: theme.transitions.create('transform') }} />
                   )}
                 </ListItemButton>
               </Tooltip>
 
               {item.route === '/documents' && (
-                <Collapse in={!sidebarCollapsed && documentsMenuOpen} timeout="auto" unmountOnExit>
+                <Collapse in={!sidebarCollapsed && documentsMenuOpen && hasRegistryDocuments} timeout="auto" unmountOnExit>
                   <Stack sx={{ pb: 0.75 }}>
-                    {documentMenuItems.map((child) => (
-                      <ListItemButton
-                        key={child.label}
-                        selected={child.route === location.pathname}
-                        onClick={() => goTo(child.route)}
-                        sx={{ minHeight: 34, py: 0.25, pl: 7, pr: 2.5, color: child.route === location.pathname ? 'primary.main' : 'text.primary' }}
-                      >
-                        <ListItemText primary={child.label} primaryTypographyProps={{ fontSize: 12.5, fontWeight: child.route === location.pathname ? 600 : 400 }} />
-                      </ListItemButton>
-                    ))}
+                    <ListItemButton
+                      selected={allDocumentsActive}
+                      onClick={openRegistry}
+                      sx={{ minHeight: 34, py: 0.25, pl: 7, pr: 2.5, color: allDocumentsActive ? 'primary.main' : 'text.primary' }}
+                    >
+                      <ListItemText primary="Все документы" primaryTypographyProps={{ fontSize: 12.5, fontWeight: allDocumentsActive ? 600 : 400 }} />
+                    </ListItemButton>
+                    {documentTypes.map((documentType) => {
+                      const typeYears = registryYearsByDocumentType[documentType.id] ?? [];
+                      const typeExpanded = expandedDocumentTypeId === documentType.id;
+                      const typeActive = filters.documentTypeId === documentType.id && activeRegistryYear === undefined;
+
+                      return (
+                        <Box key={documentType.id}>
+                          <ListItemButton
+                            selected={typeActive}
+                            onClick={() => toggleDocumentType(documentType.id)}
+                            aria-expanded={typeExpanded}
+                            sx={{ minHeight: 34, py: 0.25, pl: 7, pr: 2.5, color: typeActive ? 'primary.main' : 'text.primary' }}
+                          >
+                            <ListItemIcon sx={{ minWidth: 24, color: typeActive ? 'primary.main' : '#697586' }}>
+                              <FolderOutlinedIcon sx={{ fontSize: 16 }} />
+                            </ListItemIcon>
+                            <ListItemText primary={documentType.name} primaryTypographyProps={{ fontSize: 12.5, fontWeight: typeActive ? 600 : 400 }} />
+                            <ExpandMoreIcon sx={{ fontSize: 16, transform: typeExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: theme.transitions.create('transform') }} />
+                          </ListItemButton>
+                          <Collapse in={typeExpanded} timeout="auto" unmountOnExit>
+                            <Stack>
+                              {typeYears.map((year) => {
+                                const yearActive = filters.documentTypeId === documentType.id && activeRegistryYear === year;
+
+                                return (
+                                  <ListItemButton
+                                    key={`${documentType.id}-${year}`}
+                                    selected={yearActive}
+                                    onClick={() => applyRegistryYear(year, documentType.id)}
+                                    sx={{ minHeight: 30, py: 0.2, pl: 11, pr: 2.5, color: yearActive ? 'primary.main' : 'text.primary' }}
+                                  >
+                                    <ListItemText primary={year} primaryTypographyProps={{ fontSize: 12.2, fontWeight: yearActive ? 600 : 400 }} />
+                                  </ListItemButton>
+                                );
+                              })}
+                            </Stack>
+                          </Collapse>
+                        </Box>
+                      );
+                    })}
                   </Stack>
                 </Collapse>
               )}

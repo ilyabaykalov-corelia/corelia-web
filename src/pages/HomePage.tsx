@@ -18,11 +18,11 @@ import {
   AccountTreeOutlined as AccountTreeOutlinedIcon,
   ArrowForwardIos as ArrowForwardIosIcon,
   DescriptionOutlined as DescriptionOutlinedIcon,
-  EventAvailableOutlined as EventAvailableOutlinedIcon,
   FactCheckOutlined as FactCheckOutlinedIcon,
   NoteAddOutlined as NoteAddOutlinedIcon,
   Search as SearchIcon,
   TaskAltOutlined as TaskAltOutlinedIcon,
+  WarningAmberOutlined as WarningAmberOutlinedIcon,
 } from '@mui/icons-material';
 import { DocumentStatusChip } from '../components/DocumentStatusChip';
 import { fetchDocuments, setFilters } from '../store/documentsSlice';
@@ -138,7 +138,7 @@ export function HomePage() {
         <Metric title="Всего в реестре" value={total || items.length} icon={DescriptionOutlinedIcon} color="#2875c7" background="#e8f1fb" />
         <Metric title="Созданы" value={counters.created} icon={TaskAltOutlinedIcon} color="#245c9f" background="#e8f1fb" />
         <Metric title="Согласованы" value={counters.approved} icon={FactCheckOutlinedIcon} color="#17623c" background="#e6f5ed" />
-        <Metric title="Отклонены" value={counters.rejected} icon={EventAvailableOutlinedIcon} color="#a93636" background="#fdebec" />
+        <Metric title="Отклонены" value={counters.rejected} icon={WarningAmberOutlinedIcon} color="#a93636" background="#fdebec" />
       </Box>
 
       {/* <Panel title="Поиск договоров"> */}
