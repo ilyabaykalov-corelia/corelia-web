@@ -7,6 +7,7 @@ import { DocumentDetailPage } from './pages/DocumentDetailPage';
 import { DocumentCreatePage } from './pages/DocumentCreatePage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { TasksListPage } from './pages/TasksListPage';
 import { clearSession, setSession } from './store/authSlice';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 
@@ -46,6 +47,9 @@ export default function App() {
       <Route path="/documents" element={<ProtectedApp><DocumentsListPage /></ProtectedApp>} />
       <Route path="/documents/new" element={<ProtectedApp><DocumentCreatePage /></ProtectedApp>} />
       <Route path="/documents/:id" element={<ProtectedApp><DocumentDetailPage /></ProtectedApp>} />
+      <Route path="/tasks" element={<Navigate to="/tasks/my" replace />} />
+      <Route path="/tasks/my" element={<ProtectedApp><TasksListPage queue="MY" /></ProtectedApp>} />
+      <Route path="/tasks/available" element={<ProtectedApp><TasksListPage queue="AVAILABLE" /></ProtectedApp>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

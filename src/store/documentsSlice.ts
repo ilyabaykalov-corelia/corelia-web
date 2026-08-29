@@ -21,6 +21,7 @@ interface DocumentsState {
   registryYears: number[];
   registryYearsByDocumentType: Record<string, number[]>;
   filters: DocumentSearchRequest;
+  currentFetchRequestId?: string;
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -35,6 +36,7 @@ const initialState: DocumentsState = {
   registryYears: [],
   registryYearsByDocumentType: {},
   filters: {},
+  currentFetchRequestId: undefined,
   loading: false,
   saving: false,
   error: null,
@@ -228,12 +230,15 @@ const documentsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchDocuments.pending, (state) => {
+      .addCase(fetchDocuments.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        state.currentFetchRequestId = action.meta.requestId;
       })
       .addCase(fetchDocuments.fulfilled, (state, action) => {
+        if (state.currentFetchRequestId !== action.meta.requestId) return;
         state.loading = false;
+        state.currentFetchRequestId = undefined;
         state.items = action.payload.items;
         state.total = action.payload.total;
         action.payload.items.forEach((document) => {
@@ -242,7 +247,9 @@ const documentsSlice = createSlice({
         });
       })
       .addCase(fetchDocuments.rejected, (state, action) => {
+        if (state.currentFetchRequestId !== action.meta.requestId) return;
         state.loading = false;
+        state.currentFetchRequestId = undefined;
         state.error = String(action.payload ?? action.error.message);
       })
       .addCase(fetchDocumentById.pending, (state) => {

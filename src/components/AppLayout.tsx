@@ -46,6 +46,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchCurrentUser, fetchDocuments, fetchDocumentTypes, setFilters } from '../store/documentsSlice';
 import { logoutUser } from '../store/authSlice';
 import type { DocumentSearchRequest } from '../types/document';
+import { tasksApi } from '../api/tasks';
 
 const expandedDrawerWidth = 240;
 const collapsedDrawerWidth = 72;
@@ -54,7 +55,7 @@ const registryLimit = 1000;
 const primaryItems = [
   { label: 'Главная', icon: HomeOutlinedIcon, route: '/' },
   { label: 'Реестр документов', icon: DescriptionOutlinedIcon, route: '/documents' },
-  { label: 'Задачи', icon: TaskAltOutlinedIcon, badge: 12 },
+  { label: 'Задачи', icon: TaskAltOutlinedIcon, route: '/tasks' },
   { label: 'Поручения', icon: AssignmentOutlinedIcon },
   { label: 'Коллекции', icon: CollectionsBookmarkOutlinedIcon },
   { label: 'Справочники', icon: MenuBookOutlinedIcon },
@@ -93,7 +94,10 @@ export function AppLayout({ children }: PropsWithChildren) {
   const [collapsed, setCollapsed] = useState(false);
   const [expandedDocumentTypeId, setExpandedDocumentTypeId] = useState<string | null>(null);
   const documentsSection = location.pathname.startsWith('/documents');
+  const tasksSection = location.pathname.startsWith('/tasks');
   const [documentsMenuOpen, setDocumentsMenuOpen] = useState(documentsSection);
+  const [tasksMenuOpen, setTasksMenuOpen] = useState(tasksSection);
+  const [taskCounters, setTaskCounters] = useState({ my: 0, available: 0 });
   const sidebarCollapsed = desktop && collapsed;
   const drawerWidth = sidebarCollapsed ? collapsedDrawerWidth : expandedDrawerWidth;
   const displayUser = authUser ?? user;
@@ -114,12 +118,32 @@ export function AppLayout({ children }: PropsWithChildren) {
   }, [dispatch, documentTypes.length]);
 
   useEffect(() => {
+    let mounted = true;
+
+    tasksApi.summary()
+      .then((summary) => {
+        if (mounted) setTaskCounters(summary);
+      })
+      .catch(() => {
+        if (mounted) setTaskCounters({ my: 0, available: 0 });
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [location.pathname]);
+
+  useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
     if (documentsSection) setDocumentsMenuOpen(true);
   }, [documentsSection]);
+
+  useEffect(() => {
+    if (tasksSection) setTasksMenuOpen(true);
+  }, [tasksSection]);
 
   const goTo = (route?: string) => {
     if (!route) return;
@@ -168,6 +192,26 @@ export function AppLayout({ children }: PropsWithChildren) {
     setDocumentsMenuOpen((current) => hasRegistryDocuments && !current);
   };
 
+  const toggleTasksMenu = () => {
+    if (sidebarCollapsed) {
+      setCollapsed(false);
+      setTasksMenuOpen(true);
+      return;
+    }
+
+    setTasksMenuOpen((current) => !current);
+  };
+
+  const taskCounterBadge = (count: number) => {
+    if (count <= 0) return null;
+
+    return (
+      <Box sx={{ minWidth: 22, height: 20, borderRadius: 10, px: 0.65, bgcolor: 'primary.main', color: '#fff', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center' }}>
+        {count}
+      </Box>
+    );
+  };
+
   const toggleSidebar = () => {
     if (desktop) {
       setCollapsed((current) => !current);
@@ -192,16 +236,19 @@ export function AppLayout({ children }: PropsWithChildren) {
             ? location.pathname === '/'
             : item.route === '/documents'
               ? documentsSection && location.pathname !== '/documents/new'
+              : item.route === '/tasks'
+                ? tasksSection
               : location.pathname === item.route;
           const Icon = item.icon;
+          const expandable = item.route === '/documents' || item.route === '/tasks';
 
           return (
             <Box key={item.label}>
               <Tooltip title={sidebarCollapsed ? item.label : ''} placement="right" arrow>
                 <ListItemButton
                   selected={active}
-                  onClick={() => (item.route === '/documents' ? toggleDocumentsMenu() : goTo(item.route))}
-                  aria-expanded={item.route === '/documents' ? documentsMenuOpen : undefined}
+                  onClick={() => (item.route === '/documents' ? toggleDocumentsMenu() : item.route === '/tasks' ? toggleTasksMenu() : goTo(item.route))}
+                  aria-expanded={expandable ? (item.route === '/documents' ? documentsMenuOpen : tasksMenuOpen) : undefined}
                   sx={{
                     minHeight: 44,
                     mx: 0,
@@ -226,13 +273,8 @@ export function AppLayout({ children }: PropsWithChildren) {
                     <Icon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
                   {!sidebarCollapsed && <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: 13, fontWeight: active ? 600 : 500, letterSpacing: 0 }} />}
-                  {item.badge && (
-                    <Box sx={{ minWidth: sidebarCollapsed ? 17 : 22, height: sidebarCollapsed ? 17 : 20, borderRadius: 10, px: sidebarCollapsed ? 0.35 : 0.65, bgcolor: 'primary.main', color: '#fff', fontSize: sidebarCollapsed ? 9 : 11, fontWeight: 700, display: 'grid', placeItems: 'center', position: sidebarCollapsed ? 'absolute' : 'static', top: sidebarCollapsed ? 4 : 'auto', right: sidebarCollapsed ? 7 : 'auto' }}>
-                      {item.badge}
-                    </Box>
-                  )}
-                  {!sidebarCollapsed && item.route === '/documents' && hasRegistryDocuments && (
-                    <ExpandMoreIcon sx={{ fontSize: 17, transform: documentsMenuOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: theme.transitions.create('transform') }} />
+                  {!sidebarCollapsed && expandable && (item.route !== '/documents' || hasRegistryDocuments) && (
+                    <ExpandMoreIcon sx={{ fontSize: 17, transform: (item.route === '/documents' ? documentsMenuOpen : tasksMenuOpen) ? 'rotate(0deg)' : 'rotate(-90deg)', transition: theme.transitions.create('transform') }} />
                   )}
                 </ListItemButton>
               </Tooltip>
@@ -287,6 +329,29 @@ export function AppLayout({ children }: PropsWithChildren) {
                         </Box>
                       );
                     })}
+                  </Stack>
+                </Collapse>
+              )}
+
+              {item.route === '/tasks' && (
+                <Collapse in={!sidebarCollapsed && tasksMenuOpen} timeout="auto" unmountOnExit>
+                  <Stack sx={{ pb: 0.75 }}>
+                    <ListItemButton
+                      selected={location.pathname === '/tasks/my'}
+                      onClick={() => navigate('/tasks/my')}
+                      sx={{ minHeight: 34, py: 0.25, pl: 7, pr: 2.5, color: location.pathname === '/tasks/my' ? 'primary.main' : 'text.primary' }}
+                    >
+                      <ListItemText primary="Мои задачи" primaryTypographyProps={{ fontSize: 12.5, fontWeight: location.pathname === '/tasks/my' ? 600 : 400 }} />
+                      {taskCounterBadge(taskCounters.my)}
+                    </ListItemButton>
+                    <ListItemButton
+                      selected={location.pathname === '/tasks/available'}
+                      onClick={() => navigate('/tasks/available')}
+                      sx={{ minHeight: 34, py: 0.25, pl: 7, pr: 2.5, color: location.pathname === '/tasks/available' ? 'primary.main' : 'text.primary' }}
+                    >
+                      <ListItemText primary="Доступные задачи" primaryTypographyProps={{ fontSize: 12.5, fontWeight: location.pathname === '/tasks/available' ? 600 : 400 }} />
+                      {taskCounterBadge(taskCounters.available)}
+                    </ListItemButton>
                   </Stack>
                 </Collapse>
               )}

@@ -35,6 +35,9 @@ type IconComponent = ComponentType<SvgIconProps>;
 const statusOptions: Array<{ value: ApprovalStatus | ''; label: string }> = [
   { value: '', label: 'Все статусы' },
   { value: 'CREATED', label: 'Создан' },
+  { value: 'IN_WORK', label: 'В работе' },
+  { value: 'ON_APPROVAL', label: 'На согласовании' },
+  { value: 'NEEDS_REVISION', label: 'На доработке' },
   { value: 'APPROVED', label: 'Согласован' },
   { value: 'REJECTED', label: 'Отклонен' },
 ];
@@ -98,6 +101,7 @@ export function HomePage() {
 
   const counters = useMemo(() => ({
     created: items.filter((document) => document.approvalStatus === 'CREATED').length,
+    active: items.filter((document) => ['IN_WORK', 'ON_APPROVAL', 'NEEDS_REVISION'].includes(document.approvalStatus)).length,
     approved: items.filter((document) => document.approvalStatus === 'APPROVED').length,
     rejected: items.filter((document) => document.approvalStatus === 'REJECTED').length,
   }), [items]);
@@ -136,7 +140,7 @@ export function HomePage() {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5 }}>
         <Metric title="Всего в реестре" value={total || items.length} icon={DescriptionOutlinedIcon} color="#2875c7" background="#e8f1fb" />
-        <Metric title="Созданы" value={counters.created} icon={TaskAltOutlinedIcon} color="#245c9f" background="#e8f1fb" />
+        <Metric title="В процессе" value={counters.active + counters.created} icon={TaskAltOutlinedIcon} color="#8b5b12" background="#fff2d6" />
         <Metric title="Согласованы" value={counters.approved} icon={FactCheckOutlinedIcon} color="#17623c" background="#e6f5ed" />
         <Metric title="Отклонены" value={counters.rejected} icon={WarningAmberOutlinedIcon} color="#a93636" background="#fdebec" />
       </Box>
