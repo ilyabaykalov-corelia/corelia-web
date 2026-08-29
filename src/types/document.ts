@@ -1,6 +1,6 @@
-export type ApprovalStatus = 'CREATED' | 'APPROVED' | 'REJECTED';
+export type ApprovalStatus = 'CREATED' | 'IN_WORK' | 'ON_APPROVAL' | 'NEEDS_REVISION' | 'APPROVED' | 'REJECTED';
 export type ApprovalDecision = Exclude<ApprovalStatus, 'CREATED'>;
-export type DocumentStatus = 'Создан' | 'Согласован' | 'Отклонен';
+export type DocumentStatus = 'Создан' | 'В работе' | 'На согласовании' | 'На доработке' | 'Согласован' | 'Отклонен';
 
 export interface DocumentType {
   id: string;

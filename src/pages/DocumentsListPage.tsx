@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -34,6 +34,9 @@ type SortDirection = 'asc' | 'desc';
 const statusOptions: Array<{ value: ApprovalStatus | ''; label: string }> = [
   { value: '', label: 'Все статусы' },
   { value: 'CREATED', label: 'Создан' },
+  { value: 'IN_WORK', label: 'В работе' },
+  { value: 'ON_APPROVAL', label: 'На согласовании' },
+  { value: 'NEEDS_REVISION', label: 'На доработке' },
   { value: 'APPROVED', label: 'Согласован' },
   { value: 'REJECTED', label: 'Отклонен' },
 ];
@@ -46,8 +49,20 @@ const sortColumns: Array<{ field: SortField; label: string }> = [
   { field: 'documentStatus', label: 'Статус' },
 ];
 const registryLimit = 1000;
+const filterDebounceMs = 350;
 const fallbackDocumentType = { id: 'PDS_CONTRACT', name: 'Договор ПДС' };
 const tableGridTemplate = 'minmax(160px, .8fr) minmax(180px, 1fr) 130px minmax(150px, .8fr) 118px';
+
+const comparableDate = (value: string) => {
+  const trimmed = value.trim();
+  const isoMatch = /^(\d{4}-\d{2}-\d{2})/.exec(trimmed);
+  if (isoMatch) return isoMatch[1];
+
+  const ruMatch = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(trimmed);
+  if (ruMatch) return `${ruMatch[3]}-${ruMatch[2]}-${ruMatch[1]}`;
+
+  return trimmed;
+};
 
 function SortHeader({
   field,
@@ -105,6 +120,11 @@ export function DocumentsListPage() {
   const [dateTo, setDateTo] = useState(filters.dateTo ?? '');
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection | null>(null);
+  const filtersRef = useRef(filters);
+
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
 
   useEffect(() => {
     setDocumentTypeId(filters.documentTypeId ?? '');
@@ -126,12 +146,35 @@ export function DocumentsListPage() {
 
   const counters = useMemo(() => ({
     created: items.filter((document) => document.approvalStatus === 'CREATED').length,
+    active: items.filter((document) => ['IN_WORK', 'ON_APPROVAL', 'NEEDS_REVISION'].includes(document.approvalStatus)).length,
     approved: items.filter((document) => document.approvalStatus === 'APPROVED').length,
     rejected: items.filter((document) => document.approvalStatus === 'REJECTED').length,
   }), [items]);
 
+  const visibleItems = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase('ru-RU');
+
+    return items.filter((document) => {
+      const contractDate = comparableDate(document.contractDate);
+      if (documentTypeId && document.documentTypeId !== documentTypeId) return false;
+      if (status && document.approvalStatus !== status) return false;
+      if (dateFrom && contractDate < comparableDate(dateFrom)) return false;
+      if (dateTo && contractDate > comparableDate(dateTo)) return false;
+      if (!normalizedQuery) return true;
+
+      return [
+        document.documentType,
+        document.contractNumber,
+        document.contractDate,
+        document.snils,
+        document.documentStatus,
+        document.id,
+      ].some((field) => field.toLocaleLowerCase('ru-RU').includes(normalizedQuery));
+    });
+  }, [dateFrom, dateTo, documentTypeId, items, query, status]);
+
   const sortedItems = useMemo(() => {
-    if (!sortField || !sortDirection) return items;
+    if (!sortField || !sortDirection) return visibleItems;
 
     const fieldValue = (document: DocumentRecord) => {
       if (sortField === 'documentType') return document.documentType;
@@ -142,12 +185,12 @@ export function DocumentsListPage() {
     };
     const direction = sortDirection === 'asc' ? 1 : -1;
 
-    return [...items].sort((left, right) => {
+    return [...visibleItems].sort((left, right) => {
       const result = fieldValue(left).localeCompare(fieldValue(right), 'ru-RU', { numeric: true });
       if (result !== 0) return result * direction;
       return left.contractNumber.localeCompare(right.contractNumber, 'ru-RU', { numeric: true });
     });
-  }, [items, sortDirection, sortField]);
+  }, [sortDirection, sortField, visibleItems]);
 
   const handleSort = (field: SortField) => {
     if (sortField !== field) {
@@ -165,8 +208,7 @@ export function DocumentsListPage() {
     setSortDirection(null);
   };
 
-  const applyFilters = () => {
-    const nextFilters: DocumentSearchRequest = {
+  const buildFilters = useCallback((): DocumentSearchRequest => ({
       documentTypeId: documentTypeId || undefined,
       query: query.trim() || undefined,
       status: status || undefined,
@@ -174,11 +216,34 @@ export function DocumentsListPage() {
       dateTo: dateTo || undefined,
       offset: 0,
       limit: registryLimit,
-    };
+  }), [dateFrom, dateTo, documentTypeId, query, status]);
 
+  const applyFilters = () => {
+    const nextFilters = buildFilters();
     dispatch(setFilters(nextFilters));
     void dispatch(fetchDocuments(nextFilters));
   };
+
+  useEffect(() => {
+    const nextFilters = buildFilters();
+    const currentFilters = filtersRef.current;
+
+    const filtersUnchanged =
+      (currentFilters.documentTypeId ?? '') === (nextFilters.documentTypeId ?? '') &&
+      (currentFilters.query ?? '') === (nextFilters.query ?? '') &&
+      (currentFilters.status ?? '') === (nextFilters.status ?? '') &&
+      (currentFilters.dateFrom ?? '') === (nextFilters.dateFrom ?? '') &&
+      (currentFilters.dateTo ?? '') === (nextFilters.dateTo ?? '');
+
+    if (filtersUnchanged) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      dispatch(setFilters(nextFilters));
+      void dispatch(fetchDocuments(nextFilters));
+    }, filterDebounceMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [buildFilters, dispatch]);
 
   const resetFilters = () => {
     setDocumentTypeId('');
@@ -203,7 +268,7 @@ export function DocumentsListPage() {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5 }}>
         <MetricCard title="Всего в реестре" value={total || items.length} icon={DescriptionOutlinedIcon} color="#2875c7" background="#e8f1fb" />
-        <MetricCard title="Созданы" value={counters.created} icon={TaskAltOutlinedIcon} color="#245c9f" background="#e8f1fb" />
+        <MetricCard title="В процессе" value={counters.active + counters.created} icon={TaskAltOutlinedIcon} color="#8b5b12" background="#fff2d6" />
         <MetricCard title="Согласованы" value={counters.approved} icon={FactCheckOutlinedIcon} color="#17623c" background="#e6f5ed" />
         <MetricCard title="Отклонены" value={counters.rejected} icon={WarningAmberOutlinedIcon} color="#a93636" background="#fdebec" />
       </Box>

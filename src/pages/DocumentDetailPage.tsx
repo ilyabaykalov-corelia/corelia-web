@@ -43,6 +43,7 @@ import { formatDate } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
 type AttributeField = keyof UpdateDocumentRequest;
+type ProcessStep = { title: string; detail: string; state: ProcessStepState; returnFromPrevious?: boolean };
 
 const fallbackDocumentType: DocumentType = { id: 'PDS_CONTRACT', name: 'Договор ПДС' };
 const fieldProps = { fullWidth: true, size: 'small' as const };
@@ -56,22 +57,61 @@ function AttributeRow({ label, children }: PropsWithChildren<{ label: string }>)
   );
 }
 
-const processCopy: Record<ApprovalStatus, Array<{ title: string; detail: string; state: ProcessStepState }>> = {
+const processCopy: Record<ApprovalStatus, ProcessStep[]> = {
   CREATED: [
     { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-    { title: 'Согласование', detail: 'Ожидает решения по договору', state: 'active' },
+    { title: 'Оператор', detail: 'Ожидает взятия в работу', state: 'active' },
+    { title: 'Согласование', detail: 'Еще не направлен согласующему', state: 'wait' },
+    { title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
+  ],
+  IN_WORK: [
+    { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+    { title: 'Оператор', detail: 'Проверка и редактирование документа', state: 'active' },
+    { title: 'Согласование', detail: 'Еще не направлен согласующему', state: 'wait' },
+    { title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
+  ],
+  ON_APPROVAL: [
+    { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+    { title: 'Оператор', detail: 'Документ подготовлен', state: 'done' },
+    { title: 'Согласование', detail: 'Ожидает решения согласующего', state: 'active' },
+    { title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
+  ],
+  NEEDS_REVISION: [
+    { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+    { title: 'Оператор', detail: 'Документ был направлен на согласование', state: 'done' },
+    { title: 'Согласование', detail: 'Согласующий вернул документ', state: 'rejected' },
+    { title: 'Доработка', detail: 'Оператор исправляет замечания', state: 'active', returnFromPrevious: true },
     { title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
   ],
   APPROVED: [
     { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+    { title: 'Оператор', detail: 'Документ подготовлен', state: 'done' },
     { title: 'Согласование', detail: 'Решение принято', state: 'done' },
     { title: 'Завершение', detail: 'Договор согласован', state: 'done' },
   ],
   REJECTED: [
     { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-    { title: 'Согласование', detail: 'Решение принято', state: 'done' },
+    { title: 'Оператор / согласующий', detail: 'Документ отклонен на маршруте', state: 'done' },
+    { title: 'Согласование', detail: 'Дальнейшие действия не требуются', state: 'rejected' },
     { title: 'Завершение', detail: 'Договор отклонен', state: 'rejected' },
   ],
+};
+
+const actionCopy: Partial<Record<ApprovalDecision, { label: string; tone: 'success' | 'warning' | 'error' }>> = {
+  IN_WORK: { label: 'Взять в работу', tone: 'success' },
+  ON_APPROVAL: { label: 'Отправить на согласование', tone: 'success' },
+  NEEDS_REVISION: { label: 'Отправить на доработку', tone: 'warning' },
+  APPROVED: { label: 'Согласовать', tone: 'success' },
+  REJECTED: { label: 'Отклонить', tone: 'error' },
+};
+
+const actionsByStatus: Record<ApprovalStatus, ApprovalDecision[]> = {
+  CREATED: ['IN_WORK', 'REJECTED'],
+  IN_WORK: ['ON_APPROVAL', 'REJECTED'],
+  ON_APPROVAL: ['NEEDS_REVISION', 'APPROVED', 'REJECTED'],
+  NEEDS_REVISION: ['ON_APPROVAL', 'REJECTED'],
+  APPROVED: [],
+  REJECTED: [],
 };
 
 const stepStyles: Record<ProcessStepState, { borderColor: string; backgroundColor: string; color: string }> = {
@@ -116,7 +156,9 @@ export function DocumentDetailPage() {
 
   const processSteps = processCopy[document.approvalStatus];
   const actionMenuOpen = Boolean(actionAnchorEl);
-  const decisionDisabled = editing || saving || document.approvalStatus !== 'CREATED';
+  const availableActions = actionsByStatus[document.approvalStatus];
+  const terminalDocument = document.approvalStatus === 'APPROVED' || document.approvalStatus === 'REJECTED';
+  const decisionDisabled = editing || saving || availableActions.length === 0;
   const availableDocumentTypes = (() => {
     const baseTypes = documentTypes.length > 0 ? documentTypes : [fallbackDocumentType];
     if (baseTypes.some((item) => item.id === document.documentTypeId)) return baseTypes;
@@ -261,7 +303,7 @@ export function DocumentDetailPage() {
               </Button>
             </>
           ) : (
-            <Button variant="outlined" color="inherit" startIcon={<EditOutlinedIcon />} onClick={startEdit}>Редактировать</Button>
+            <Button variant="outlined" color="inherit" startIcon={<EditOutlinedIcon />} onClick={startEdit} disabled={terminalDocument}>Редактировать</Button>
           )}
           <Button
             id="document-actions-button"
@@ -283,14 +325,25 @@ export function DocumentDetailPage() {
             onClose={closeActionMenu}
             MenuListProps={{ 'aria-labelledby': 'document-actions-button' }}
           >
-            <MenuItem disabled={decisionDisabled} onClick={() => void completeApproval('APPROVED')}>
-              <ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon>
-              <ListItemText primary="Согласовать" primaryTypographyProps={{ fontSize: 12.5 }} />
-            </MenuItem>
-            <MenuItem disabled={decisionDisabled} onClick={() => void completeApproval('REJECTED')}>
-              <ListItemIcon><WarningAmberOutlinedIcon color="error" fontSize="small" /></ListItemIcon>
-              <ListItemText primary="Отклонить" primaryTypographyProps={{ fontSize: 12.5 }} />
-            </MenuItem>
+            {availableActions.length === 0 ? (
+              <MenuItem disabled>
+                <ListItemText primary="Процесс завершен" primaryTypographyProps={{ fontSize: 12.5 }} />
+              </MenuItem>
+            ) : availableActions.map((action) => {
+              const copy = actionCopy[action];
+              return (
+                <MenuItem key={action} disabled={decisionDisabled} onClick={() => void completeApproval(action)}>
+                  <ListItemIcon>
+                    {copy?.tone === 'error' ? (
+                      <WarningAmberOutlinedIcon color="error" fontSize="small" />
+                    ) : (
+                      <CheckCircleIcon color={copy?.tone === 'warning' ? 'warning' : 'success'} fontSize="small" />
+                    )}
+                  </ListItemIcon>
+                  <ListItemText primary={copy?.label ?? action} primaryTypographyProps={{ fontSize: 12.5 }} />
+                </MenuItem>
+              );
+            })}
           </Menu>
           <IconButton aria-label="Дополнительные действия" disabled={saving} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}><MoreVertIcon /></IconButton>
         </Stack>
@@ -353,7 +406,17 @@ export function DocumentDetailPage() {
                         </Box>
                       </Paper>
                     </Box>
-                    {index < processSteps.length - 1 && <ArrowForwardIcon sx={{ fontSize: 22, color: step.state === 'wait' ? '#b9c2cc' : sx.color, mt: 2, mx: 0.4 }} />}
+                    {index < processSteps.length - 1 && (
+                      <ArrowForwardIcon
+                        sx={{
+                          fontSize: 22,
+                          color: processSteps[index + 1].returnFromPrevious ? '#a93636' : step.state === 'wait' ? '#b9c2cc' : sx.color,
+                          mt: 2,
+                          mx: 0.4,
+                          transform: processSteps[index + 1].returnFromPrevious ? 'rotate(180deg)' : undefined,
+                        }}
+                      />
+                    )}
                   </Box>
                 );
               })}
