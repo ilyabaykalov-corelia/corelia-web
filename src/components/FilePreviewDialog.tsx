@@ -30,11 +30,11 @@ export function FilePreviewDialog({ file, onClose }: { file: File | null; onClos
   }, [file, kind]);
 
   return (
-    <Dialog open={Boolean(file)} onClose={onClose} fullWidth maxWidth="xl" PaperProps={{ sx: { height: { xs: '94vh', md: '90vh' }, maxWidth: 1380 } }}>
+    <Dialog open={Boolean(file)} onClose={onClose} fullWidth maxWidth="xl" slotProps={{ paper: { sx: { height: { xs: '94vh', md: '90vh' }, maxWidth: 1380 } } }}>
       {file && (
         <>
           <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider', py: 1.5 }}>
-            <Stack direction="row" alignItems="center" spacing={1.2}>
+            <Stack direction="row" spacing={1.2} sx={{ alignItems: 'center' }}>
               <DocumentFileIcon fileName={file.name} size={32} />
               <Box sx={{ minWidth: 0 }}>
                 <Typography noWrap sx={{ fontSize: 14, fontWeight: 600 }}>{file.name}</Typography>

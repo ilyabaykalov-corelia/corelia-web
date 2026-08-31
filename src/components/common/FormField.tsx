@@ -12,7 +12,7 @@ const Label = styled(Typography)(({ theme }) => ({
   marginBottom: theme.spacing(0.55),
 }));
 
-const RequiredMark = styled(Box)(({ theme }) => ({
+const RequiredMark = styled('span')(({ theme }) => ({
   color: theme.palette.error.main,
 }));
 
@@ -36,7 +36,7 @@ export function FormField({ label, required, children }: PropsWithChildren<FormF
   return (
     <Root>
       <Label>
-        {label} {required && <RequiredMark component="span">*</RequiredMark>}
+        {label} {required && <RequiredMark>*</RequiredMark>}
       </Label>
       {children}
     </Root>

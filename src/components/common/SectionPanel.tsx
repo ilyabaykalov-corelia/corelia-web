@@ -34,8 +34,8 @@ interface SectionPanelProps {
 export function SectionPanel({ title, count, action, sx, children }: PropsWithChildren<SectionPanelProps>) {
   return (
     <Panel variant="outlined" sx={sx}>
-      <Header direction="row" alignItems="center" justifyContent="space-between">
-        <Stack direction="row" alignItems="center" spacing={1}>
+      <Header direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Typography variant="h6">{title}</Typography>
           {count !== undefined && (
             <Chip label={count} variant="outlined" size="small" sx={{ height: 25, minWidth: 25, borderRadius: 12, fontSize: 11 }} />

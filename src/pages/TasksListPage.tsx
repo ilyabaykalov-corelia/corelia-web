@@ -158,7 +158,7 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
 
   return (
     <Stack spacing={2}>
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between' }}>
         <Box>
           <Typography variant="h4">{config.title}</Typography>
           <Typography color="text.secondary" sx={{ fontSize: 13, mt: 0.5 }}>
@@ -192,7 +192,7 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
         {loading ? (
           <Box sx={{ display: 'grid', placeItems: 'center', py: 6 }}><CircularProgress /></Box>
         ) : sortedItems.length === 0 ? (
-          <Stack alignItems="center" spacing={1.2} sx={{ py: 6, color: 'text.secondary' }}>
+          <Stack spacing={1.2} sx={{ py: 6, color: 'text.secondary', alignItems: 'center' }}>
             <Icon sx={{ fontSize: 34 }} />
             <Typography sx={{ fontSize: 14 }}>{config.empty}</Typography>
           </Stack>

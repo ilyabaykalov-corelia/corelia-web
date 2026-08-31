@@ -257,7 +257,7 @@ export function DocumentsListPage() {
 
   return (
     <Stack spacing={2}>
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between' }}>
         <Box>
           <Typography variant="h4">Реестр документов</Typography>
         </Box>
@@ -289,8 +289,8 @@ export function DocumentsListPage() {
           <TextField select size="small" label="Статус" value={status} onChange={(event) => setStatus(event.target.value as ApprovalStatus | '')}>
             {statusOptions.map((option) => <MenuItem key={option.label} value={option.value}>{option.label}</MenuItem>)}
           </TextField>
-          <TextField size="small" label="Дата с" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} InputLabelProps={{ shrink: true }} />
-          <TextField size="small" label="Дата по" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} InputLabelProps={{ shrink: true }} />
+          <TextField size="small" label="Дата с" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+          <TextField size="small" label="Дата по" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
           <Stack direction="row" spacing={1} sx={{ gridColumn: { xs: 'auto', md: '1 / -1', xl: 'auto' } }}>
             <Button variant="contained" startIcon={<SearchIcon />} onClick={applyFilters}>Найти</Button>
             <Button variant="outlined" color="inherit" onClick={resetFilters}>Сбросить</Button>
@@ -306,9 +306,9 @@ export function DocumentsListPage() {
         sx={{ minHeight: 312 }}
       >
         {loading && sortedItems.length === 0 ? (
-          <Stack alignItems="center" sx={{ py: 7 }}><CircularProgress size={28} /></Stack>
+          <Stack sx={{ py: 7, alignItems: 'center' }}><CircularProgress size={28} /></Stack>
         ) : sortedItems.length === 0 ? (
-          <Stack alignItems="center" spacing={1.4} sx={{ py: 7, textAlign: 'center' }}>
+          <Stack spacing={1.4} sx={{ py: 7, textAlign: 'center', alignItems: 'center' }}>
             <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Документы не найдены</Typography>
             <Button variant="contained" startIcon={<NoteAddOutlinedIcon />} onClick={() => navigate('/documents/new')}>Создать документ</Button>
           </Stack>
@@ -343,7 +343,7 @@ export function DocumentsListPage() {
                   '&:hover': { bgcolor: '#f8fafb' },
                 }}
               >
-                <Stack direction="row" spacing={1.1} alignItems="center" sx={{ minWidth: 0 }}>
+                <Stack direction="row" spacing={1.1} sx={{ minWidth: 0, alignItems: 'center' }}>
                   <DescriptionOutlinedIcon sx={{ color: '#2875c7', fontSize: 24, flexShrink: 0 }} />
                   <Box sx={{ minWidth: 0 }}>
                     <Typography noWrap sx={{ fontSize: 12.5, fontWeight: 600 }}>{document.documentType}</Typography>

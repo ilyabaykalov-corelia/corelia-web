@@ -32,7 +32,7 @@ import {
   DescriptionOutlined as DescriptionOutlinedIcon,
   ExpandMore as ExpandMoreIcon,
   FolderOutlined as FolderOutlinedIcon,
-  HelpOutline as HelpOutlineIcon,
+  HelpOutlined as HelpOutlineIcon,
   HomeOutlined as HomeOutlinedIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   LogoutOutlined as LogoutOutlinedIcon,
@@ -238,7 +238,7 @@ export function AppLayout({ children }: PropsWithChildren) {
 
   const drawer = (
     <Stack sx={{ height: '100%', bgcolor: '#fff' }}>
-      <Stack justifyContent="center" alignItems={sidebarCollapsed ? 'center' : 'flex-start'} sx={{ height: 70, flexShrink: 0, px: sidebarCollapsed ? 0 : 2.5 }}>
+      <Stack sx={{ height: 70, flexShrink: 0, px: sidebarCollapsed ? 0 : 2.5, justifyContent: 'center', alignItems: sidebarCollapsed ? 'center' : 'flex-start' }}>
         <Box sx={{ width: sidebarCollapsed ? 34 : 142, overflow: 'hidden', transition: theme.transitions.create('width') }}>
           <Box component="img" src="/sber-npf-logo.png" alt="Сбер НПФ" sx={{ width: 142, maxWidth: 'none', height: 'auto', display: 'block' }} />
         </Box>
@@ -288,7 +288,7 @@ export function AppLayout({ children }: PropsWithChildren) {
                   <ListItemIcon sx={{ minWidth: sidebarCollapsed ? 0 : 34, justifyContent: 'center', color: active ? 'primary.main' : '#697586' }}>
                     <Icon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
-                  {!sidebarCollapsed && <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: 13, fontWeight: active ? 600 : 500, letterSpacing: 0 }} />}
+                  {!sidebarCollapsed && <ListItemText primary={item.label} slotProps={{ primary: { sx: { fontSize: 13, fontWeight: active ? 600 : 500, letterSpacing: 0 } } }} />}
                   {!sidebarCollapsed && expandable && (item.route !== '/documents' || hasRegistryDocuments) && (
                     <ExpandMoreIcon sx={{ fontSize: 17, transform: (item.route === '/documents' ? documentsMenuOpen : tasksMenuOpen) ? 'rotate(0deg)' : 'rotate(-90deg)', transition: theme.transitions.create('transform') }} />
                   )}
@@ -303,7 +303,7 @@ export function AppLayout({ children }: PropsWithChildren) {
                       onClick={openRegistry}
                       sx={{ minHeight: 34, py: 0.25, pl: 7, pr: 2.5, color: allDocumentsActive ? 'primary.main' : 'text.primary' }}
                     >
-                      <ListItemText primary="Все документы" primaryTypographyProps={{ fontSize: 12.5, fontWeight: allDocumentsActive ? 600 : 400 }} />
+                      <ListItemText primary="Все документы" slotProps={{ primary: { sx: { fontSize: 12.5, fontWeight: allDocumentsActive ? 600 : 400 } } }} />
                     </ListItemButton>
                     {documentTypes.map((documentType) => {
                       const typeYears = registryYearsByDocumentType[documentType.id] ?? [];
@@ -321,7 +321,7 @@ export function AppLayout({ children }: PropsWithChildren) {
                             <ListItemIcon sx={{ minWidth: 24, color: typeActive ? 'primary.main' : '#697586' }}>
                               <FolderOutlinedIcon sx={{ fontSize: 16 }} />
                             </ListItemIcon>
-                            <ListItemText primary={documentType.name} primaryTypographyProps={{ fontSize: 12.5, fontWeight: typeActive ? 600 : 400 }} />
+                            <ListItemText primary={documentType.name} slotProps={{ primary: { sx: { fontSize: 12.5, fontWeight: typeActive ? 600 : 400 } } }} />
                             <ExpandMoreIcon sx={{ fontSize: 16, transform: typeExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: theme.transitions.create('transform') }} />
                           </ListItemButton>
                           <Collapse in={typeExpanded} timeout="auto" unmountOnExit>
@@ -336,7 +336,7 @@ export function AppLayout({ children }: PropsWithChildren) {
                                     onClick={() => applyRegistryYear(year, documentType.id)}
                                     sx={{ minHeight: 30, py: 0.2, pl: 11, pr: 2.5, color: yearActive ? 'primary.main' : 'text.primary' }}
                                   >
-                                    <ListItemText primary={year} primaryTypographyProps={{ fontSize: 12.2, fontWeight: yearActive ? 600 : 400 }} />
+                                    <ListItemText primary={year} slotProps={{ primary: { sx: { fontSize: 12.2, fontWeight: yearActive ? 600 : 400 } } }} />
                                   </ListItemButton>
                                 );
                               })}
@@ -357,7 +357,7 @@ export function AppLayout({ children }: PropsWithChildren) {
                       onClick={() => navigate('/tasks/my')}
                       sx={{ minHeight: 34, py: 0.25, pl: 7, pr: 2.5, color: location.pathname === '/tasks/my' ? 'primary.main' : 'text.primary' }}
                     >
-                      <ListItemText primary="Мои задачи" primaryTypographyProps={{ fontSize: 12.5, fontWeight: location.pathname === '/tasks/my' ? 600 : 400 }} />
+                      <ListItemText primary="Мои задачи" slotProps={{ primary: { sx: { fontSize: 12.5, fontWeight: location.pathname === '/tasks/my' ? 600 : 400 } } }} />
                       {taskCounterBadge(taskCounters.my)}
                     </ListItemButton>
                     <ListItemButton
@@ -365,7 +365,7 @@ export function AppLayout({ children }: PropsWithChildren) {
                       onClick={() => navigate('/tasks/available')}
                       sx={{ minHeight: 34, py: 0.25, pl: 7, pr: 2.5, color: location.pathname === '/tasks/available' ? 'primary.main' : 'text.primary' }}
                     >
-                      <ListItemText primary="Доступные задачи" primaryTypographyProps={{ fontSize: 12.5, fontWeight: location.pathname === '/tasks/available' ? 600 : 400 }} />
+                      <ListItemText primary="Доступные задачи" slotProps={{ primary: { sx: { fontSize: 12.5, fontWeight: location.pathname === '/tasks/available' ? 600 : 400 } } }} />
                       {taskCounterBadge(taskCounters.available)}
                     </ListItemButton>
                   </Stack>
@@ -386,7 +386,7 @@ export function AppLayout({ children }: PropsWithChildren) {
             <ListItemIcon sx={{ minWidth: sidebarCollapsed ? 0 : 34, justifyContent: 'center' }}>
               {sidebarCollapsed ? <ChevronRightIcon sx={{ fontSize: 20 }} /> : <ChevronLeftIcon sx={{ fontSize: 20 }} />}
             </ListItemIcon>
-            {!sidebarCollapsed && <ListItemText primary={desktop ? 'Свернуть' : 'Закрыть'} primaryTypographyProps={{ fontSize: 13, fontWeight: 500 }} />}
+            {!sidebarCollapsed && <ListItemText primary={desktop ? 'Свернуть' : 'Закрыть'} slotProps={{ primary: { sx: { fontSize: 13, fontWeight: 500 } } }} />}
           </ListItemButton>
         </Tooltip>
       </Box>
@@ -428,9 +428,11 @@ export function AppLayout({ children }: PropsWithChildren) {
             size="small"
             placeholder="Поиск по документам, задачам, коллекциям..."
             sx={{ width: { xs: '100%', sm: 540 }, maxWidth: '50vw' }}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 20, color: '#647184' }} /></InputAdornment>,
-              endAdornment: <InputAdornment position="end"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, px: 0.7, py: 0.2, color: 'text.secondary', fontSize: 11 }}>Ctrl + K</Box></InputAdornment>,
+            slotProps={{
+              input: {
+                startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 20, color: '#647184' }} /></InputAdornment>,
+                endAdornment: <InputAdornment position="end"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, px: 0.7, py: 0.2, color: 'text.secondary', fontSize: 11 }}>Ctrl + K</Box></InputAdornment>,
+              },
             }}
           />
           <Box sx={{ flex: 1 }} />

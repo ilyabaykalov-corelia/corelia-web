@@ -152,7 +152,7 @@ export function DocumentDetailPage() {
     if (documentTypes.length === 0) void dispatch(fetchDocumentTypes());
   }, [dispatch, documentTypes.length]);
 
-  if (loading && !document) return <Stack alignItems="center" sx={{ py: 12 }}><CircularProgress /></Stack>;
+  if (loading && !document) return <Stack sx={{ py: 12, alignItems: 'center' }}><CircularProgress /></Stack>;
   if (error && !document) return <Alert severity="error">{error}</Alert>;
   if (!document) return null;
 
@@ -291,12 +291,12 @@ export function DocumentDetailPage() {
         <Typography color="text.primary" sx={{ fontSize: 12.5 }}>{ document.documentType } {document.contractNumber}</Typography>
       </Breadcrumbs>
 
-      <Stack direction={{ xs: 'column', lg: 'row' }} alignItems={{ lg: 'center' }} justifyContent="space-between" spacing={1.5}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.5}>
+      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} sx={{ alignItems: { lg: 'center' }, justifyContent: 'space-between' }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { xs: 'flex-start', sm: 'center' } }}>
           <Typography variant="h4">{ document.documentType } {document.contractNumber}</Typography>
           <DocumentStatusChip status={document.documentStatus} />
         </Stack>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
           {editing ? (
             <>
               <Button variant="outlined" color="inherit" startIcon={<CloseIcon />} onClick={cancelEdit} disabled={saving}>Отмена</Button>
@@ -325,11 +325,11 @@ export function DocumentDetailPage() {
             anchorEl={actionAnchorEl}
             open={actionMenuOpen}
             onClose={closeActionMenu}
-            MenuListProps={{ 'aria-labelledby': 'document-actions-button' }}
+            slotProps={{ list: { 'aria-labelledby': 'document-actions-button' } }}
           >
             {availableActions.length === 0 ? (
               <MenuItem disabled>
-                <ListItemText primary="Процесс завершен" primaryTypographyProps={{ fontSize: 12.5 }} />
+                <ListItemText primary="Процесс завершен" slotProps={{ primary: { sx: { fontSize: 12.5 } } }} />
               </MenuItem>
             ) : availableActions.map((action) => {
               return (
@@ -341,7 +341,7 @@ export function DocumentDetailPage() {
                       <CheckCircleIcon color={action.tone === 'warning' ? 'warning' : 'success'} fontSize="small" />
                     )}
                   </ListItemIcon>
-                  <ListItemText primary={action.label} primaryTypographyProps={{ fontSize: 12.5 }} />
+                  <ListItemText primary={action.label} slotProps={{ primary: { sx: { fontSize: 12.5 } } }} />
                 </MenuItem>
               );
             })}
@@ -375,10 +375,10 @@ export function DocumentDetailPage() {
                     <TextField {...fieldProps} type="date" value={form.contractDate} onChange={(event) => updateField('contractDate', event.target.value)} disabled={saving} />
                   </FormField>
                   <FormField label="Номер договора" required>
-                    <TextField {...fieldProps} value={form.contractNumber} onChange={(event) => updateField('contractNumber', event.target.value)} placeholder="Введите номер договора" disabled={saving} inputProps={{ maxLength: 64 }} />
+                    <TextField {...fieldProps} value={form.contractNumber} onChange={(event) => updateField('contractNumber', event.target.value)} placeholder="Введите номер договора" disabled={saving} slotProps={{ htmlInput: { maxLength: 64 } }} />
                   </FormField>
                   <FormField label="СНИЛС" required>
-                    <TextField {...fieldProps} value={form.snils} onChange={(event) => updateSnils(event.target.value)} placeholder="Введите СНИЛС" disabled={saving} inputProps={{ maxLength: 14, inputMode: 'numeric' }} />
+                    <TextField {...fieldProps} value={form.snils} onChange={(event) => updateSnils(event.target.value)} placeholder="Введите СНИЛС" disabled={saving} slotProps={{ htmlInput: { maxLength: 14, inputMode: 'numeric' } }} />
                   </FormField>
                 </Box>
               </Stack>
@@ -440,25 +440,9 @@ export function DocumentDetailPage() {
             )}
           </SectionPanel>
 
-          {/* <SectionPanel title="Сводка"> */}
-          {/*   <Stack spacing={1.2}> */}
-          {/*     {[ */}
-          {/*       ['Документ', document.documentType], */}
-          {/*       ['Дата договора', formatDate(document.contractDate)], */}
-          {/*       ['Номер договора', document.contractNumber], */}
-          {/*       ['СНИЛС', document.snils], */}
-          {/*     ].map(([label, value]) => ( */}
-          {/*       <Stack key={label} direction="row" justifyContent="space-between" spacing={1.5} sx={{ borderTop: label === 'Документ' ? 0 : 1, borderColor: 'divider', pt: label === 'Документ' ? 0 : 1 }}> */}
-          {/*         <Typography color="text.secondary" sx={{ fontSize: 11.5 }}>{label}</Typography> */}
-          {/*         <Typography sx={{ fontSize: 11.8, textAlign: 'right', overflowWrap: 'anywhere' }}>{value}</Typography> */}
-          {/*       </Stack> */}
-          {/*     ))} */}
-          {/*   </Stack> */}
-          {/* </SectionPanel> */}
-
           <SectionPanel title="Доступ" action={<Typography color="secondary.main" sx={{ fontSize: 11.5, cursor: 'pointer' }}>Изменить</Typography>}>
             {[['Просмотр', '15'], ['Редактирование', '5'], ['Администрирование', '2']].map(([role, count]) => (
-              <Stack key={role} direction="row" justifyContent="space-between" sx={{ py: 0.45 }}>
+              <Stack key={role} direction="row" sx={{ py: 0.45, justifyContent: 'space-between' }}>
                 <Typography sx={{ fontSize: 11.8 }}>{role}</Typography>
                 <Typography sx={{ fontSize: 11.8 }}>{count}</Typography>
               </Stack>

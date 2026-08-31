@@ -46,8 +46,8 @@ export function DocxDocumentPreview({ file }: { file: File }) {
 
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%', overflow: 'auto', bgcolor: '#dfe3e8' }}>
-      {loading && <Stack alignItems="center" justifyContent="center" sx={{ position: 'absolute', inset: 0, zIndex: 2 }}><CircularProgress size={34} /></Stack>}
-      {error && <Stack alignItems="center" justifyContent="center" sx={{ position: 'absolute', inset: 0, zIndex: 2 }}><Typography color="error">{error}</Typography></Stack>}
+      {loading && <Stack sx={{ position: 'absolute', inset: 0, zIndex: 2, alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={34} /></Stack>}
+      {error && <Stack sx={{ position: 'absolute', inset: 0, zIndex: 2, alignItems: 'center', justifyContent: 'center' }}><Typography color="error">{error}</Typography></Stack>}
       <Box
         ref={containerRef}
         sx={{

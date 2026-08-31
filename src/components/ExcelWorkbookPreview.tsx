@@ -178,11 +178,11 @@ export function ExcelWorkbookPreview({ file }: { file: File }) {
     return () => { active = false; };
   }, [file]);
 
-  if (loading) return <Stack alignItems="center" justifyContent="center" sx={{ flex: 1 }}><CircularProgress size={34} /></Stack>;
-  if (error) return <Stack alignItems="center" justifyContent="center" sx={{ flex: 1 }}><Typography color="error">{error}</Typography></Stack>;
+  if (loading) return <Stack sx={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={34} /></Stack>;
+  if (error) return <Stack sx={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Typography color="error">{error}</Typography></Stack>;
 
   const sheet = sheets[activeSheet];
-  if (!sheet) return <Stack alignItems="center" justifyContent="center" sx={{ flex: 1 }}><Typography color="text.secondary">В книге нет доступных листов</Typography></Stack>;
+  if (!sheet) return <Stack sx={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Typography color="text.secondary">В книге нет доступных листов</Typography></Stack>;
 
   return (
     <Paper variant="outlined" sx={{ width: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

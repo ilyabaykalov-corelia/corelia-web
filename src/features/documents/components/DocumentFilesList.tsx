@@ -96,7 +96,7 @@ export function AttachmentDocumentFilesList({
   return (
     <Stack spacing={1.35}>
       {attachments.map((attachment) => (
-        <Stack key={attachment.id} direction="row" spacing={1} alignItems="center">
+        <Stack key={attachment.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <DocumentFileIcon fileName={attachment.fileName} size={28} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography noWrap sx={{ fontSize: 12 }}>{attachment.fileName}</Typography>

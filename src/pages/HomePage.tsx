@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType, type PropsWithChildren } from 'react';
+import { useEffect, useMemo, type ComponentType, type PropsWithChildren } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -6,41 +6,26 @@ import {
   Button,
   Chip,
   CircularProgress,
-  MenuItem,
   Paper,
   Stack,
-  TextField,
   Typography,
   type PaperProps,
   type SvgIconProps,
 } from '@mui/material';
 import {
-  AccountTreeOutlined as AccountTreeOutlinedIcon,
   ArrowForwardIos as ArrowForwardIosIcon,
   DescriptionOutlined as DescriptionOutlinedIcon,
   FactCheckOutlined as FactCheckOutlinedIcon,
   NoteAddOutlined as NoteAddOutlinedIcon,
-  Search as SearchIcon,
   TaskAltOutlined as TaskAltOutlinedIcon,
   WarningAmberOutlined as WarningAmberOutlinedIcon,
 } from '@mui/icons-material';
 import { DocumentStatusChip } from '../components/DocumentStatusChip';
-import { fetchDocuments, setFilters } from '../store/documentsSlice';
+import { fetchDocuments } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { ApprovalStatus, DocumentSearchRequest } from '../types/document';
 import { formatDate } from '../utils/format';
 
 type IconComponent = ComponentType<SvgIconProps>;
-
-const statusOptions: Array<{ value: ApprovalStatus | ''; label: string }> = [
-  { value: '', label: 'Все статусы' },
-  { value: 'CREATED', label: 'Создан' },
-  { value: 'IN_WORK', label: 'В работе' },
-  { value: 'ON_APPROVAL', label: 'На согласовании' },
-  { value: 'NEEDS_REVISION', label: 'На доработке' },
-  { value: 'APPROVED', label: 'Согласован' },
-  { value: 'REJECTED', label: 'Отклонен' },
-];
 
 const taskRows = [
   ['Проверить договор ПДС №ПДС-2405-001', 'Согласование договора ПДС', '24.05.2024', 'В работе'],
@@ -52,7 +37,7 @@ const taskRows = [
 function Panel({ title, action, onAction, children, sx }: PropsWithChildren<{ title: string; action?: string; onAction?: () => void; sx?: PaperProps['sx'] }>) {
   return (
     <Paper variant="outlined" sx={{ p: 2, minWidth: 0, ...sx }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.35 }}>
+      <Stack direction="row" sx={{ mb: 1.35, alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="h6">{title}</Typography>
         {action && (
           <Button color="secondary" size="small" endIcon={<ArrowForwardIosIcon sx={{ fontSize: 11 }} />} onClick={onAction} sx={{ fontSize: 11.5, minWidth: 0, px: 0.5 }}>
@@ -90,11 +75,6 @@ export function HomePage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { items, total, loading, error, currentUser, filters } = useAppSelector((state) => state.documents);
-  const [query, setQuery] = useState(filters.query ?? '');
-  const [status, setStatus] = useState<ApprovalStatus | ''>((filters.status as ApprovalStatus | '') ?? '');
-  const [dateFrom, setDateFrom] = useState(filters.dateFrom ?? '');
-  const [dateTo, setDateTo] = useState(filters.dateTo ?? '');
-
   useEffect(() => {
     if (items.length === 0) void dispatch(fetchDocuments(filters));
   }, [dispatch, filters, items.length]);
@@ -106,30 +86,9 @@ export function HomePage() {
     rejected: items.filter((document) => document.approvalStatus === 'REJECTED').length,
   }), [items]);
 
-  const applyFilters = () => {
-    const nextFilters: DocumentSearchRequest = {
-      query: query.trim() || undefined,
-      status: status || undefined,
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined,
-    };
-
-    dispatch(setFilters(nextFilters));
-    void dispatch(fetchDocuments(nextFilters));
-  };
-
-  const resetFilters = () => {
-    setQuery('');
-    setStatus('');
-    setDateFrom('');
-    setDateTo('');
-    dispatch(setFilters({}));
-    void dispatch(fetchDocuments({}));
-  };
-
   return (
     <Stack spacing={2}>
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between' }}>
         <Box>
           <Typography variant="h4">Главная страница</Typography>
         </Box>
@@ -145,35 +104,14 @@ export function HomePage() {
         <Metric title="Отклонены" value={counters.rejected} icon={WarningAmberOutlinedIcon} color="#a93636" background="#fdebec" />
       </Box>
 
-      {/* <Panel title="Поиск договоров"> */}
-      {/*   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1.3fr) repeat(3, minmax(150px, .7fr)) auto' }, gap: 1.2, alignItems: 'center' }}> */}
-      {/*     <TextField */}
-      {/*       size="small" */}
-      {/*       label="Номер, СНИЛС или Id" */}
-      {/*       value={query} */}
-      {/*       onChange={(event) => setQuery(event.target.value)} */}
-      {/*       onKeyDown={(event) => { if (event.key === 'Enter') applyFilters(); }} */}
-      {/*     /> */}
-      {/*     <TextField select size="small" label="Статус" value={status} onChange={(event) => setStatus(event.target.value as ApprovalStatus | '')}> */}
-      {/*       {statusOptions.map((option) => <MenuItem key={option.label} value={option.value}>{option.label}</MenuItem>)} */}
-      {/*     </TextField> */}
-      {/*     <TextField size="small" label="Дата с" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} InputLabelProps={{ shrink: true }} /> */}
-      {/*     <TextField size="small" label="Дата по" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} InputLabelProps={{ shrink: true }} /> */}
-      {/*     <Stack direction="row" spacing={1}> */}
-      {/*       <Button variant="contained" startIcon={<SearchIcon />} onClick={applyFilters}>Найти</Button> */}
-      {/*       <Button variant="outlined" color="inherit" onClick={resetFilters}>Сбросить</Button> */}
-      {/*     </Stack> */}
-      {/*   </Box> */}
-      {/* </Panel> */}
-
       {error && <Alert severity="error">{error}</Alert>}
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2fr) minmax(330px, 1fr)' }, gap: 2 }}>
         <Panel title="Последние документы" action="Обновить" onAction={() => { void dispatch(fetchDocuments(filters)); }} sx={{ minHeight: 312 }}>
           {loading && items.length === 0 ? (
-            <Stack alignItems="center" sx={{ py: 7 }}><CircularProgress size={28} /></Stack>
+            <Stack sx={{ py: 7, alignItems: 'center' }}><CircularProgress size={28} /></Stack>
           ) : items.length === 0 ? (
-            <Stack alignItems="center" spacing={1.4} sx={{ py: 7, textAlign: 'center' }}>
+            <Stack spacing={1.4} sx={{ py: 7, textAlign: 'center', alignItems: 'center' }}>
               <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Документы не найдены</Typography>
               <Button variant="contained" startIcon={<NoteAddOutlinedIcon />} onClick={() => navigate('/documents/new')}>Создать документ</Button>
             </Stack>
@@ -199,7 +137,7 @@ export function HomePage() {
                     '&:hover': { bgcolor: '#f8fafb' },
                   }}
                 >
-                  <Stack direction="row" spacing={1.1} alignItems="center" sx={{ minWidth: 0 }}>
+                  <Stack direction="row" spacing={1.1} sx={{ minWidth: 0, alignItems: 'center' }}>
                     <DescriptionOutlinedIcon sx={{ color: '#2875c7', fontSize: 24, flexShrink: 0 }} />
                     <Box sx={{ minWidth: 0 }}>
                       <Typography noWrap sx={{ fontSize: 12.5, fontWeight: 600 }}>{document.documentType} {document.contractNumber}</Typography>
@@ -231,31 +169,6 @@ export function HomePage() {
         </Panel>
       </Box>
 
-      {/* <Panel title="Маршрут договора ПДС"> */}
-      {/*   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}> */}
-      {/*     {[ */}
-      {/*       { title: 'Создание карточки', count: counters.created + counters.approved + counters.rejected, color: '#2875c7', bg: '#e8f1fb', icon: NoteAddOutlinedIcon }, */}
-      {/*       { title: 'Согласование', count: counters.created, color: '#17623c', bg: '#e6f5ed', icon: AccountTreeOutlinedIcon }, */}
-      {/*       { title: 'Завершение', count: counters.approved + counters.rejected, color: '#8b5b12', bg: '#fff2d6', icon: FactCheckOutlinedIcon }, */}
-      {/*     ].map((process) => { */}
-      {/*       const Icon = process.icon; */}
-      {/*       return ( */}
-      {/*         <Box key={process.title} sx={{ minHeight: 82, bgcolor: process.bg, border: 1, borderColor: '#eef1f3', borderRadius: 1, display: 'flex', alignItems: 'center', gap: 1.35, p: 1.5 }}> */}
-      {/*           <Box sx={{ width: 42, height: 42, borderRadius: '50%', bgcolor: '#fff', color: process.color, display: 'grid', placeItems: 'center', flexShrink: 0 }}> */}
-      {/*             <Icon sx={{ fontSize: 23 }} /> */}
-      {/*           </Box> */}
-      {/*           <Box sx={{ minWidth: 0 }}> */}
-      {/*             <Typography sx={{ fontSize: 12.5, fontWeight: 500 }}>{process.title}</Typography> */}
-      {/*             <Stack direction="row" alignItems="baseline" spacing={0.6}> */}
-      {/*               <Typography sx={{ fontSize: 22, lineHeight: 1.35 }}>{process.count}</Typography> */}
-      {/*               <Typography color="text.secondary" sx={{ fontSize: 10.5 }}>договоров</Typography> */}
-      {/*             </Stack> */}
-      {/*           </Box> */}
-      {/*         </Box> */}
-      {/*       ); */}
-      {/*     })} */}
-      {/*   </Box> */}
-      {/* </Panel> */}
     </Stack>
   );
 }

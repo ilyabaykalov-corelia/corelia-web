@@ -58,7 +58,7 @@ export function LoginPage() {
     <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', bgcolor: 'background.default', p: 2 }}>
       <Paper variant="outlined" sx={{ width: '100%', maxWidth: 420, p: { xs: 2.2, sm: 3 }, borderRadius: 1 }}>
         <Stack spacing={2.2}>
-          <Stack spacing={1.2} alignItems="center" sx={{ textAlign: 'center' }}>
+          <Stack spacing={1.2} sx={{ textAlign: 'center', alignItems: 'center' }}>
             <Box component="img" src="/sber-npf-logo.png" alt="Сбер НПФ" sx={{ width: 156, height: 'auto' }} />
             <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: '#e6f5ed', color: 'primary.main', display: 'grid', placeItems: 'center' }}>
               <LockOutlinedIcon sx={{ fontSize: 24 }} />
@@ -89,19 +89,21 @@ export function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      edge="end"
-                      aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
-                      onClick={() => setShowPassword((current) => !current)}
-                      size="small"
-                    >
-                      {showPassword ? <VisibilityOffOutlinedIcon sx={{ fontSize: 19 }} /> : <VisibilityOutlinedIcon sx={{ fontSize: 19 }} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        edge="end"
+                        aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                        onClick={() => setShowPassword((current) => !current)}
+                        size="small"
+                      >
+                        {showPassword ? <VisibilityOffOutlinedIcon sx={{ fontSize: 19 }} /> : <VisibilityOutlinedIcon sx={{ fontSize: 19 }} />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
               }}
             />
             <Button
