@@ -1,34 +1,34 @@
 import { useEffect, useState, type PropsWithChildren } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
-  Alert,
-  Box,
-  Breadcrumbs,
-  Button,
-  CircularProgress,
-  IconButton,
-  Link,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Paper,
-  Stack,
-  Tab,
-  Tabs,
-  TextField,
-  Typography,
+	Alert,
+	Box,
+	Breadcrumbs,
+	Button,
+	CircularProgress,
+	IconButton,
+	Link,
+	ListItemIcon,
+	ListItemText,
+	Menu,
+	MenuItem,
+	Paper,
+	Stack,
+	Tab,
+	Tabs,
+	TextField,
+	Typography,
 } from '@mui/material';
 import {
-  ArrowForward as ArrowForwardIcon,
-  CheckCircle as CheckCircleIcon,
-  Close as CloseIcon,
-  EditOutlined as EditOutlinedIcon,
-  ExpandMore as ExpandMoreIcon,
-  MoreVert as MoreVertIcon,
-  RadioButtonUnchecked as RadioButtonUncheckedIcon,
-  SaveOutlined as SaveOutlinedIcon,
-  WarningAmberOutlined as WarningAmberOutlinedIcon,
+	ArrowForward as ArrowForwardIcon,
+	CheckCircle as CheckCircleIcon,
+	Close as CloseIcon,
+	EditOutlined as EditOutlinedIcon,
+	ExpandMore as ExpandMoreIcon,
+	MoreVert as MoreVertIcon,
+	RadioButtonUnchecked as RadioButtonUncheckedIcon,
+	SaveOutlined as SaveOutlinedIcon,
+	WarningAmberOutlined as WarningAmberOutlinedIcon,
 } from '@mui/icons-material';
 import { FormField } from '../components/common/FormField';
 import { SectionPanel } from '../components/common/SectionPanel';
@@ -38,7 +38,7 @@ import { AttachmentDocumentFilesList } from '../features/documents/components/Do
 import { formatSnils, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
 import { clearCurrentDocument, completeDocumentApproval, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, updateDocument } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { ApprovalDecision, ApprovalStatus, Attachment, DocumentType, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
+import type { ApprovalStatus, Attachment, DocumentType, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
 import { formatDate } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
@@ -49,408 +49,422 @@ const fallbackDocumentType: DocumentType = { id: 'PDS_CONTRACT', name: 'Дого
 const fieldProps = { fullWidth: true, size: 'small' as const };
 
 function AttributeRow({ label, children }: PropsWithChildren<{ label: string }>) {
-  return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '190px minmax(0, 1fr)' }, gap: { xs: 0.35, sm: 1.5 }, minHeight: 34, alignItems: 'start', py: 0.25 }}>
-      <Typography color="text.secondary" sx={{ fontSize: 11.5 }}>{label}</Typography>
-      <Box sx={{ fontSize: 12.5, minWidth: 0, overflowWrap: 'anywhere' }}>{children || '—'}</Box>
-    </Box>
-  );
+	return (
+		<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '190px minmax(0, 1fr)' }, gap: { xs: 0.35, sm: 1.5 }, minHeight: 34, alignItems: 'start', py: 0.25 } }>
+			<Typography color="text.secondary" sx={ { fontSize: 11.5 } }>{ label }</Typography>
+			<Box sx={ { fontSize: 12.5, minWidth: 0, overflowWrap: 'anywhere' } }>{ children || '—' }</Box>
+		</Box>
+	);
 }
 
 const processCopy: Record<ApprovalStatus, ProcessStep[]> = {
-  CREATED: [
-    { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-    { title: 'Оператор', detail: 'Ожидает взятия в работу', state: 'active' },
-    { title: 'Согласование', detail: 'Еще не направлен согласующему', state: 'wait' },
-    { title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
-  ],
-  IN_WORK: [
-    { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-    { title: 'Оператор', detail: 'Проверка и редактирование документа', state: 'active' },
-    { title: 'Согласование', detail: 'Еще не направлен согласующему', state: 'wait' },
-    { title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
-  ],
-  ON_APPROVAL: [
-    { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-    { title: 'Оператор', detail: 'Документ подготовлен', state: 'done' },
-    { title: 'Согласование', detail: 'Ожидает решения согласующего', state: 'active' },
-    { title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
-  ],
-  NEEDS_REVISION: [
-    { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-    { title: 'Оператор', detail: 'Документ был направлен на согласование', state: 'done' },
-    { title: 'Согласование', detail: 'Согласующий вернул документ', state: 'rejected' },
-    { title: 'Доработка', detail: 'Оператор исправляет замечания', state: 'active', returnFromPrevious: true },
-    { title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
-  ],
-  APPROVED: [
-    { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-    { title: 'Оператор', detail: 'Документ подготовлен', state: 'done' },
-    { title: 'Согласование', detail: 'Решение принято', state: 'done' },
-    { title: 'Завершение', detail: 'Договор согласован', state: 'done' },
-  ],
-  REJECTED: [
-    { title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-    { title: 'Оператор / согласующий', detail: 'Документ отклонен на маршруте', state: 'done' },
-    { title: 'Согласование', detail: 'Дальнейшие действия не требуются', state: 'rejected' },
-    { title: 'Завершение', detail: 'Договор отклонен', state: 'rejected' },
-  ],
+	CREATED: [
+		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+		{ title: 'Оператор', detail: 'Ожидает взятия в работу', state: 'active' },
+		{ title: 'Согласование', detail: 'Еще не направлен согласующему', state: 'wait' },
+		{ title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
+	],
+	IN_WORK: [
+		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+		{ title: 'Оператор', detail: 'Проверка и редактирование документа', state: 'active' },
+		{ title: 'Согласование', detail: 'Еще не направлен согласующему', state: 'wait' },
+		{ title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
+	],
+	ON_APPROVAL: [
+		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+		{ title: 'Оператор', detail: 'Документ подготовлен', state: 'done' },
+		{ title: 'Согласование', detail: 'Ожидает решения согласующего', state: 'active' },
+		{ title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
+	],
+	NEEDS_REVISION: [
+		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+		{ title: 'Оператор', detail: 'Документ был направлен на согласование', state: 'done' },
+		{ title: 'Согласование', detail: 'Согласующий вернул документ', state: 'rejected' },
+		{ title: 'Доработка', detail: 'Оператор исправляет замечания', state: 'active', returnFromPrevious: true },
+		{ title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
+	],
+	APPROVED: [
+		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+		{ title: 'Оператор', detail: 'Документ подготовлен', state: 'done' },
+		{ title: 'Согласование', detail: 'Решение принято', state: 'done' },
+		{ title: 'Завершение', detail: 'Договор согласован', state: 'done' },
+	],
+	REJECTED: [
+		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
+		{ title: 'Оператор / согласующий', detail: 'Документ отклонен на маршруте', state: 'done' },
+		{ title: 'Согласование', detail: 'Дальнейшие действия не требуются', state: 'rejected' },
+		{ title: 'Завершение', detail: 'Договор отклонен', state: 'rejected' },
+	],
 };
-
-const actionCopy: Partial<Record<ApprovalDecision, DocumentWorkflowAction>> = {
-  IN_WORK: { status: 'IN_WORK', label: 'Взять в работу', tone: 'success' },
-  ON_APPROVAL: { status: 'ON_APPROVAL', label: 'Отправить на согласование', tone: 'success' },
-  NEEDS_REVISION: { status: 'NEEDS_REVISION', label: 'Отправить на доработку', tone: 'warning' },
-  APPROVED: { status: 'APPROVED', label: 'Согласовать', tone: 'success' },
-  REJECTED: { status: 'REJECTED', label: 'Отклонить', tone: 'error' },
-};
-
-const actionsByStatus: Record<ApprovalStatus, ApprovalDecision[]> = {
-  CREATED: ['IN_WORK', 'REJECTED'],
-  IN_WORK: ['ON_APPROVAL', 'REJECTED'],
-  ON_APPROVAL: ['NEEDS_REVISION', 'APPROVED', 'REJECTED'],
-  NEEDS_REVISION: ['ON_APPROVAL', 'REJECTED'],
-  APPROVED: [],
-  REJECTED: [],
-};
-
-const isWorkflowAction = (action: DocumentWorkflowAction | undefined): action is DocumentWorkflowAction => Boolean(action);
 
 const stepStyles: Record<ProcessStepState, { borderColor: string; backgroundColor: string; color: string }> = {
-  done: { borderColor: '#b9dfc5', backgroundColor: '#eef8f1', color: '#17623c' },
-  active: { borderColor: '#6da0dc', backgroundColor: '#f3f8fe', color: '#245c9f' },
-  wait: { borderColor: '#d8dee6', backgroundColor: '#fff', color: '#7b8796' },
-  rejected: { borderColor: '#efb4b4', backgroundColor: '#fff1f1', color: '#a93636' },
+	done: { borderColor: '#b9dfc5', backgroundColor: '#eef8f1', color: '#17623c' },
+	active: { borderColor: '#6da0dc', backgroundColor: '#f3f8fe', color: '#245c9f' },
+	wait: { borderColor: '#d8dee6', backgroundColor: '#fff', color: '#7b8796' },
+	rejected: { borderColor: '#efb4b4', backgroundColor: '#fff1f1', color: '#a93636' },
 };
 
+const executorTaskStatusLabels = {
+	NEW: 'Доступна',
+	ASSIGNED: 'Назначена',
+	STARTED: 'В работе',
+	COMPLETED: 'Завершена',
+	ABORTED: 'Отменена',
+} as const;
+
 function StepIcon({ state }: { state: ProcessStepState }) {
-  if (state === 'rejected') return <WarningAmberOutlinedIcon sx={{ color: '#a93636', fontSize: 18 }} />;
-  if (state === 'wait') return <RadioButtonUncheckedIcon sx={{ color: '#b2bbc6', fontSize: 17 }} />;
-  return <CheckCircleIcon sx={{ color: state === 'active' ? '#245c9f' : 'primary.main', fontSize: 18 }} />;
+	if (state === 'rejected') return <WarningAmberOutlinedIcon sx={ { color: '#a93636', fontSize: 18 } }/>;
+	if (state === 'wait') return <RadioButtonUncheckedIcon sx={ { color: '#b2bbc6', fontSize: 17 } }/>;
+	return <CheckCircleIcon sx={ { color: state === 'active' ? '#245c9f' : 'primary.main', fontSize: 18 } }/>;
 }
 
 export function DocumentDetailPage() {
-  const { id } = useParams();
-  const dispatch = useAppDispatch();
-  const { currentItem: document, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<UpdateDocumentRequest | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [actionAnchorEl, setActionAnchorEl] = useState<null | HTMLElement>(null);
-  const [previewFile, setPreviewFile] = useState<File | null>(null);
-  const [previewAttachmentId, setPreviewAttachmentId] = useState<string | null>(null);
-  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+	const { id } = useParams();
+	const dispatch = useAppDispatch();
+	const { currentItem: document, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
+	const [ editing, setEditing ] = useState(false);
+	const [ form, setForm ] = useState<UpdateDocumentRequest | null>(null);
+	const [ validationError, setValidationError ] = useState<string | null>(null);
+	const [ actionError, setActionError ] = useState<string | null>(null);
+	const [ actionAnchorEl, setActionAnchorEl ] = useState<null | HTMLElement>(null);
+	const [ previewFile, setPreviewFile ] = useState<File | null>(null);
+	const [ previewAttachmentId, setPreviewAttachmentId ] = useState<string | null>(null);
+	const [ downloadingAttachmentId, setDownloadingAttachmentId ] = useState<string | null>(null);
+	const [ previewError, setPreviewError ] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (id) void dispatch(fetchDocumentById(id));
-    return () => { dispatch(clearCurrentDocument()); };
-  }, [dispatch, id]);
+	useEffect(() => {
+		if (id) void dispatch(fetchDocumentById(id));
+		return () => {
+			dispatch(clearCurrentDocument());
+		};
+	}, [ dispatch, id ]);
 
-  useEffect(() => {
-    if (documentTypes.length === 0) void dispatch(fetchDocumentTypes());
-  }, [dispatch, documentTypes.length]);
+	useEffect(() => {
+		if (documentTypes.length === 0) void dispatch(fetchDocumentTypes());
+	}, [ dispatch, documentTypes.length ]);
 
-  if (loading && !document) return <Stack sx={{ py: 12, alignItems: 'center' }}><CircularProgress /></Stack>;
-  if (error && !document) return <Alert severity="error">{error}</Alert>;
-  if (!document) return null;
+	if (loading && !document) return <Stack sx={ { py: 12, alignItems: 'center' } }><CircularProgress/></Stack>;
+	if (error && !document) return <Alert severity="error">{ error }</Alert>;
+	if (!document) return null;
 
-  const processSteps = processCopy[document.approvalStatus];
-  const actionMenuOpen = Boolean(actionAnchorEl);
-  const availableActions = document.availableActions ?? actionsByStatus[document.approvalStatus].map((action) => actionCopy[action]).filter(isWorkflowAction);
-  const terminalDocument = document.approvalStatus === 'APPROVED' || document.approvalStatus === 'REJECTED';
-  const decisionDisabled = editing || saving || availableActions.length === 0;
-  const availableDocumentTypes = (() => {
-    const baseTypes = documentTypes.length > 0 ? documentTypes : [fallbackDocumentType];
-    if (baseTypes.some((item) => item.id === document.documentTypeId)) return baseTypes;
-    return [{ id: document.documentTypeId, name: document.documentType }, ...baseTypes];
-  })();
+	const processSteps = processCopy[document.approvalStatus];
+	const actionMenuOpen = Boolean(actionAnchorEl);
+	const availableActions = document.availableActions ?? [];
+	const terminalDocument = document.approvalStatus === 'APPROVED' || document.approvalStatus === 'REJECTED';
+	const decisionDisabled = editing || saving || availableActions.length === 0;
+	const availableDocumentTypes = (() => {
+		const baseTypes = documentTypes.length > 0 ? documentTypes : [ fallbackDocumentType ];
+		if (baseTypes.some((item) => item.id === document.documentTypeId)) return baseTypes;
+		return [ { id: document.documentTypeId, name: document.documentType }, ...baseTypes ];
+	})();
 
-  const startEdit = () => {
-    setForm({
-      documentTypeId: document.documentTypeId,
-      contractDate: document.contractDate,
-      contractNumber: document.contractNumber,
-      snils: document.snils,
-    });
-    setValidationError(null);
-    setActionError(null);
-    setEditing(true);
-  };
+	const startEdit = () => {
+		setForm({
+			documentTypeId: document.documentTypeId,
+			contractDate: document.contractDate,
+			contractNumber: document.contractNumber,
+			snils: document.snils,
+		});
+		setValidationError(null);
+		setActionError(null);
+		setEditing(true);
+	};
 
-  const cancelEdit = () => {
-    setEditing(false);
-    setValidationError(null);
-    setActionError(null);
-    setForm(null);
-  };
+	const cancelEdit = () => {
+		setEditing(false);
+		setValidationError(null);
+		setActionError(null);
+		setForm(null);
+	};
 
-  const updateField = (field: AttributeField, value: string) => {
-    setForm((current) => current ? { ...current, [field]: value } : current);
-    setValidationError(null);
-    setActionError(null);
-  };
+	const updateField = (field: AttributeField, value: string) => {
+		setForm((current) => current ? { ...current, [field]: value } : current);
+		setValidationError(null);
+		setActionError(null);
+	};
 
-  const updateSnils = (value: string) => {
-    updateField('snils', formatSnils(value));
-  };
+	const updateSnils = (value: string) => {
+		updateField('snils', formatSnils(value));
+	};
 
-  const saveAttributes = async () => {
-    if (!form) return;
+	const saveAttributes = async () => {
+		if (!form) return;
 
-    const formError = validateDocumentAttributes(form);
-    if (formError) {
-      setValidationError(formError);
-      return;
-    }
+		const formError = validateDocumentAttributes(form);
+		if (formError) {
+			setValidationError(formError);
+			return;
+		}
 
-    try {
-      const updated = await dispatch(updateDocument({
-        id: document.id,
-        payload: {
-          documentTypeId: form.documentTypeId,
-          contractDate: form.contractDate,
-          contractNumber: form.contractNumber.trim(),
-          snils: form.snils.trim(),
-        },
-      })).unwrap();
+		try {
+			const updated = await dispatch(updateDocument({
+				id: document.id,
+				payload: {
+					documentTypeId: form.documentTypeId,
+					contractDate: form.contractDate,
+					contractNumber: form.contractNumber.trim(),
+					snils: form.snils.trim(),
+				},
+			})).unwrap();
 
-      setForm({
-        documentTypeId: updated.documentTypeId,
-        contractDate: updated.contractDate,
-        contractNumber: updated.contractNumber,
-        snils: updated.snils,
-      });
-      setValidationError(null);
-      setActionError(null);
-      setEditing(false);
-    } catch (submitError) {
-      setValidationError(submitError instanceof Error ? submitError.message : String(submitError));
-    }
-  };
+			setForm({
+				documentTypeId: updated.documentTypeId,
+				contractDate: updated.contractDate,
+				contractNumber: updated.contractNumber,
+				snils: updated.snils,
+			});
+			setValidationError(null);
+			setActionError(null);
+			setEditing(false);
+		} catch (submitError) {
+			setValidationError(submitError instanceof Error ? submitError.message : String(submitError));
+		}
+	};
 
-  const closeActionMenu = () => {
-    setActionAnchorEl(null);
-  };
+	const closeActionMenu = () => {
+		setActionAnchorEl(null);
+	};
 
-  const completeApproval = async (approvalStatus: ApprovalDecision) => {
-    closeActionMenu();
-    setActionError(null);
-    setValidationError(null);
+	const completeApproval = async (action: DocumentWorkflowAction) => {
+		closeActionMenu();
+		setActionError(null);
+		setValidationError(null);
 
-    try {
-      await dispatch(completeDocumentApproval({
-        id: document.id,
-        payload: { approvalStatus },
-      })).unwrap();
-    } catch (submitError) {
-      setActionError(submitError instanceof Error ? submitError.message : String(submitError));
-    }
-  };
+		try {
+			await dispatch(completeDocumentApproval({
+				id: document.id,
+				payload: action.status ? { approvalStatus: action.status } : { actionCode: action.code },
+			})).unwrap();
+		} catch (submitError) {
+			setActionError(submitError instanceof Error ? submitError.message : String(submitError));
+		}
+	};
 
-  const openAttachmentPreview = async (attachment: Attachment) => {
-    setPreviewError(null);
-    setPreviewAttachmentId(attachment.id);
+	const openAttachmentPreview = async (attachment: Attachment) => {
+		setPreviewError(null);
+		setPreviewAttachmentId(attachment.id);
 
-    try {
-      const file = await dispatch(downloadDocumentAttachment(attachment)).unwrap();
-      setPreviewFile(file);
-    } catch (previewLoadError) {
-      setPreviewError(previewLoadError instanceof Error ? previewLoadError.message : String(previewLoadError));
-    } finally {
-      setPreviewAttachmentId(null);
-    }
-  };
+		try {
+			const file = await dispatch(downloadDocumentAttachment(attachment)).unwrap();
+			setPreviewFile(file);
+		} catch (previewLoadError) {
+			setPreviewError(previewLoadError instanceof Error ? previewLoadError.message : String(previewLoadError));
+		} finally {
+			setPreviewAttachmentId(null);
+		}
+	};
 
-  const downloadAttachment = async (attachment: Attachment) => {
-    setPreviewError(null);
-    setDownloadingAttachmentId(attachment.id);
+	const downloadAttachment = async (attachment: Attachment) => {
+		setPreviewError(null);
+		setDownloadingAttachmentId(attachment.id);
 
-    try {
-      const file = await dispatch(downloadDocumentAttachment(attachment)).unwrap();
-      const url = URL.createObjectURL(file);
-      const link = window.document.createElement('a');
-      link.href = url;
-      link.download = attachment.fileName;
-      window.document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch (downloadError) {
-      setPreviewError(downloadError instanceof Error ? downloadError.message : String(downloadError));
-    } finally {
-      setDownloadingAttachmentId(null);
-    }
-  };
+		try {
+			const file = await dispatch(downloadDocumentAttachment(attachment)).unwrap();
+			const url = URL.createObjectURL(file);
+			const link = window.document.createElement('a');
+			link.href = url;
+			link.download = attachment.fileName;
+			window.document.body.appendChild(link);
+			link.click();
+			link.remove();
+			window.setTimeout(() => URL.revokeObjectURL(url), 0);
+		} catch (downloadError) {
+			setPreviewError(downloadError instanceof Error ? downloadError.message : String(downloadError));
+		} finally {
+			setDownloadingAttachmentId(null);
+		}
+	};
 
-  return (
-    <Stack spacing={2}>
-      <Breadcrumbs separator="›" sx={{ fontSize: 12.5 }}>
-        <Link component={RouterLink} to="/" underline="hover" color="secondary.main">Документы</Link>
-        <Typography color="text.primary" sx={{ fontSize: 12.5 }}>{ document.documentType } {document.contractNumber}</Typography>
-      </Breadcrumbs>
+	return (
+		<Stack spacing={ 2 }>
+			<Breadcrumbs separator="›" sx={ { fontSize: 12.5 } }>
+				<Link component={ RouterLink } to="/" underline="hover" color="secondary.main">Документы</Link>
+				<Typography color="text.primary" sx={ { fontSize: 12.5 } }>{ document.documentType } { document.contractNumber }</Typography>
+			</Breadcrumbs>
 
-      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} sx={{ alignItems: { lg: 'center' }, justifyContent: 'space-between' }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { xs: 'flex-start', sm: 'center' } }}>
-          <Typography variant="h4">{ document.documentType } {document.contractNumber}</Typography>
-          <DocumentStatusChip status={document.documentStatus} />
-        </Stack>
-        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          {editing ? (
-            <>
-              <Button variant="outlined" color="inherit" startIcon={<CloseIcon />} onClick={cancelEdit} disabled={saving}>Отмена</Button>
-              <Button variant="contained" startIcon={<SaveOutlinedIcon />} onClick={() => void saveAttributes()} disabled={saving}>
-                {saving ? 'Сохранение...' : 'Сохранить'}
-              </Button>
-            </>
-          ) : (
-            <Button variant="outlined" color="inherit" startIcon={<EditOutlinedIcon />} onClick={startEdit} disabled={terminalDocument}>Редактировать</Button>
-          )}
-          <Button
-            id="document-actions-button"
-            variant="outlined"
-            color="inherit"
-            endIcon={<ExpandMoreIcon />}
-            disabled={saving || editing}
-            aria-controls={actionMenuOpen ? 'document-actions-menu' : undefined}
-            aria-haspopup="menu"
-            aria-expanded={actionMenuOpen ? 'true' : undefined}
-            onClick={(event) => setActionAnchorEl(event.currentTarget)}
-          >
-            Действия
-          </Button>
-          <Menu
-            id="document-actions-menu"
-            anchorEl={actionAnchorEl}
-            open={actionMenuOpen}
-            onClose={closeActionMenu}
-            slotProps={{ list: { 'aria-labelledby': 'document-actions-button' } }}
-          >
-            {availableActions.length === 0 ? (
-              <MenuItem disabled>
-                <ListItemText primary="Процесс завершен" slotProps={{ primary: { sx: { fontSize: 12.5 } } }} />
-              </MenuItem>
-            ) : availableActions.map((action) => {
-              return (
-                <MenuItem key={action.status} disabled={decisionDisabled} onClick={() => void completeApproval(action.status)}>
-                  <ListItemIcon>
-                    {action.tone === 'error' ? (
-                      <WarningAmberOutlinedIcon color="error" fontSize="small" />
-                    ) : (
-                      <CheckCircleIcon color={action.tone === 'warning' ? 'warning' : 'success'} fontSize="small" />
-                    )}
-                  </ListItemIcon>
-                  <ListItemText primary={action.label} slotProps={{ primary: { sx: { fontSize: 12.5 } } }} />
-                </MenuItem>
-              );
-            })}
-          </Menu>
-          <IconButton aria-label="Дополнительные действия" disabled={saving} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}><MoreVertIcon /></IconButton>
-        </Stack>
-      </Stack>
+			<Stack direction={ { xs: 'column', lg: 'row' } } spacing={ 1.5 } sx={ { alignItems: { lg: 'center' }, justifyContent: 'space-between' } }>
+				<Stack direction={ { xs: 'column', sm: 'row' } } spacing={ 1.5 } sx={ { alignItems: { xs: 'flex-start', sm: 'center' } } }>
+					<Typography variant="h4">{ document.documentType } { document.contractNumber }</Typography>
+					<DocumentStatusChip status={ document.documentStatus }/>
+				</Stack>
+				<Stack direction="row" spacing={ 1 } useFlexGap sx={ { flexWrap: 'wrap' } }>
+					{ editing ? (
+						<>
+							<Button variant="outlined" color="inherit" startIcon={ <CloseIcon/> } onClick={ cancelEdit } disabled={ saving }>Отмена</Button>
+							<Button variant="contained" startIcon={ <SaveOutlinedIcon/> } onClick={ () => void saveAttributes() } disabled={ saving }>
+								{ saving ? 'Сохранение...' : 'Сохранить' }
+							</Button>
+						</>
+					) : (
+						<Button variant="outlined" color="inherit" startIcon={ <EditOutlinedIcon/> } onClick={ startEdit } disabled={ terminalDocument }>Редактировать</Button>
+					) }
+					<Button
+						id="document-actions-button"
+						variant="outlined"
+						color="inherit"
+						endIcon={ <ExpandMoreIcon/> }
+						disabled={ saving || editing }
+						aria-controls={ actionMenuOpen ? 'document-actions-menu' : undefined }
+						aria-haspopup="menu"
+						aria-expanded={ actionMenuOpen ? 'true' : undefined }
+						onClick={ (event) => setActionAnchorEl(event.currentTarget) }
+					>
+						Действия
+					</Button>
+					<Menu
+						id="document-actions-menu"
+						anchorEl={ actionAnchorEl }
+						open={ actionMenuOpen }
+						onClose={ closeActionMenu }
+						slotProps={ { list: { 'aria-labelledby': 'document-actions-button' } } }
+					>
+						{ availableActions.length === 0 ? (
+							<MenuItem disabled>
+								<ListItemText primary="Процесс завершен" slotProps={ { primary: { sx: { fontSize: 12.5 } } } }/>
+							</MenuItem>
+						) : availableActions.map((action) => {
+							return (
+								<MenuItem key={ action.code } disabled={ decisionDisabled } onClick={ () => void completeApproval(action) }>
+									<ListItemIcon>
+										{ action.tone === 'error' ? (
+											<WarningAmberOutlinedIcon color="error" fontSize="small"/>
+										) : (
+											<CheckCircleIcon color={ action.tone === 'warning' ? 'warning' : 'success' } fontSize="small"/>
+										) }
+									</ListItemIcon>
+									<ListItemText primary={ action.label } slotProps={ { primary: { sx: { fontSize: 12.5 } } } }/>
+								</MenuItem>
+							);
+						}) }
+					</Menu>
+					<IconButton aria-label="Дополнительные действия" disabled={ saving } sx={ { border: 1, borderColor: 'divider', borderRadius: 1 } }><MoreVertIcon/></IconButton>
+				</Stack>
+			</Stack>
 
-      <Tabs value={0} variant="scrollable" scrollButtons={false} sx={{ minHeight: 42, borderBottom: 1, borderColor: 'divider', mx: -2.5, px: 2.5, '& .MuiTab-root': { minHeight: 42, minWidth: 0, px: 1.25, mr: 2, fontSize: 12.5, color: 'text.primary' } }}>
-        <Tab label="Общее" />
-        <Tab label={`Вложения (${document.attachments.length})`} />
-        <Tab label="Процесс" />
-        <Tab label="Доступ" />
-      </Tabs>
+			<Tabs value={ 0 } variant="scrollable" scrollButtons={ false } sx={ {
+				minHeight: 42, borderBottom: 1, borderColor: 'divider', mx: -2.5, px: 2.5, '& .MuiTab-root': { minHeight: 42, minWidth: 0, px: 1.25, mr: 2, fontSize: 12.5, color: 'text.primary' },
+			} }>
+				<Tab label="Общее"/>
+				<Tab label={ `Вложения (${ document.attachments.length })` }/>
+				<Tab label="Процесс"/>
+				{/* <Tab label="Доступ" /> */ }
+			</Tabs>
 
-      {(error || actionError || previewError) && <Alert severity="error">{actionError || previewError || error}</Alert>}
+			{ (error || actionError || previewError) && <Alert severity="error">{ actionError || previewError || error }</Alert> }
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 }}>
-        <Stack spacing={2} sx={{ minWidth: 0 }}>
-          <SectionPanel title="Атрибуты карточки">
-            {editing && form ? (
-              <Stack spacing={1.5}>
-                {validationError && <Alert severity="error">{validationError}</Alert>}
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
-                  <FormField label="Вид документа" required>
-                    <TextField {...fieldProps} select value={form.documentTypeId} onChange={(event) => updateField('documentTypeId', event.target.value)} disabled={saving}>
-                      {availableDocumentTypes.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
-                    </TextField>
-                  </FormField>
-                  <FormField label="Дата договора" required>
-                    <TextField {...fieldProps} type="date" value={form.contractDate} onChange={(event) => updateField('contractDate', event.target.value)} disabled={saving} />
-                  </FormField>
-                  <FormField label="Номер договора" required>
-                    <TextField {...fieldProps} value={form.contractNumber} onChange={(event) => updateField('contractNumber', event.target.value)} placeholder="Введите номер договора" disabled={saving} slotProps={{ htmlInput: { maxLength: 64 } }} />
-                  </FormField>
-                  <FormField label="СНИЛС" required>
-                    <TextField {...fieldProps} value={form.snils} onChange={(event) => updateSnils(event.target.value)} placeholder="Введите СНИЛС" disabled={saving} slotProps={{ htmlInput: { maxLength: 14, inputMode: 'numeric' } }} />
-                  </FormField>
-                </Box>
-              </Stack>
-            ) : (
-              <>
-                <AttributeRow label="Вид документа">{document.documentType}</AttributeRow>
-                <AttributeRow label="Дата договора">{formatDate(document.contractDate)}</AttributeRow>
-                <AttributeRow label="Номер договора">{document.contractNumber}</AttributeRow>
-                <AttributeRow label="СНИЛС">{document.snils}</AttributeRow>
-              </>
-            )}
-          </SectionPanel>
+			<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
+				<Stack spacing={ 2 } sx={ { minWidth: 0 } }>
+					<SectionPanel title="Атрибуты карточки">
+						{ editing && form ? (
+							<Stack spacing={ 1.5 }>
+								{ validationError && <Alert severity="error">{ validationError }</Alert> }
+								<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 } }>
+									<FormField label="Вид документа" required>
+										<TextField { ...fieldProps } select value={ form.documentTypeId } onChange={ (event) => updateField('documentTypeId', event.target.value) } disabled={ saving }>
+											{ availableDocumentTypes.map((item) => <MenuItem key={ item.id } value={ item.id }>{ item.name }</MenuItem>) }
+										</TextField>
+									</FormField>
+									<FormField label="Дата договора" required>
+										<TextField { ...fieldProps } type="date" value={ form.contractDate } onChange={ (event) => updateField('contractDate', event.target.value) }
+										           disabled={ saving }/>
+									</FormField>
+									<FormField label="Номер договора" required>
+										<TextField { ...fieldProps } value={ form.contractNumber } onChange={ (event) => updateField('contractNumber', event.target.value) }
+										           placeholder="Введите номер договора" disabled={ saving } slotProps={ { htmlInput: { maxLength: 64 } } }/>
+									</FormField>
+									<FormField label="СНИЛС" required>
+										<TextField { ...fieldProps } value={ form.snils } onChange={ (event) => updateSnils(event.target.value) } placeholder="Введите СНИЛС" disabled={ saving }
+										           slotProps={ { htmlInput: { maxLength: 14, inputMode: 'numeric' } } }/>
+									</FormField>
+								</Box>
+							</Stack>
+						) : (
+							<>
+								<AttributeRow label="Вид документа">{ document.documentType }</AttributeRow>
+								<AttributeRow label="Дата договора">{ formatDate(document.contractDate) }</AttributeRow>
+								<AttributeRow label="Номер договора">{ document.contractNumber }</AttributeRow>
+								<AttributeRow label="СНИЛС">{ document.snils }</AttributeRow>
+							</>
+						) }
+					</SectionPanel>
 
-          <SectionPanel title="Бизнес-процесс">
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto', pb: 0.5 }}>
-              {processSteps.map((step, index) => {
-                const sx = stepStyles[step.state];
-                return (
-                  <Box key={step.title} sx={{ display: 'flex', flex: index === processSteps.length - 1 ? '0 0 170px' : '1 0 190px', minWidth: 0 }}>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Paper variant="outlined" sx={{ minHeight: 58, p: 1, display: 'flex', gap: 0.85, alignItems: 'center', bgcolor: sx.backgroundColor, borderColor: sx.borderColor }}>
-                        <StepIcon state={step.state} />
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography sx={{ fontSize: 11.5, color: sx.color, fontWeight: 600 }}>{step.title}</Typography>
-                          <Typography color="text.secondary" sx={{ fontSize: 10.5 }}>{step.detail}</Typography>
-                        </Box>
-                      </Paper>
-                    </Box>
-                    {index < processSteps.length - 1 && (
-                      <ArrowForwardIcon
-                        sx={{
-                          fontSize: 22,
-                          color: processSteps[index + 1].returnFromPrevious ? '#a93636' : step.state === 'wait' ? '#b9c2cc' : sx.color,
-                          mt: 2,
-                          mx: 0.4,
-                          transform: processSteps[index + 1].returnFromPrevious ? 'rotate(180deg)' : undefined,
-                        }}
-                      />
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
-          </SectionPanel>
-        </Stack>
+					<SectionPanel title="Бизнес-процесс">
+						<Box sx={ { display: 'flex', alignItems: 'flex-start', overflowX: 'auto', pb: 0.5 } }>
+							{ processSteps.map((step, index) => {
+								const sx = stepStyles[step.state];
+								return (
+									<Box key={ step.title } sx={ { display: 'flex', flex: index === processSteps.length - 1 ? '0 0 170px' : '1 0 190px', minWidth: 0 } }>
+										<Box sx={ { flex: 1, minWidth: 0 } }>
+											<Paper variant="outlined"
+											       sx={ { minHeight: 58, p: 1, display: 'flex', gap: 0.85, alignItems: 'center', bgcolor: sx.backgroundColor, borderColor: sx.borderColor } }>
+												<StepIcon state={ step.state }/>
+												<Box sx={ { minWidth: 0 } }>
+													<Typography sx={ { fontSize: 11.5, color: sx.color, fontWeight: 600 } }>{ step.title }</Typography>
+													<Typography color="text.secondary" sx={ { fontSize: 10.5 } }>{ step.detail }</Typography>
+												</Box>
+											</Paper>
+										</Box>
+										{ index < processSteps.length - 1 && (
+											<ArrowForwardIcon
+												sx={ {
+													fontSize: 22,
+													color: processSteps[index + 1].returnFromPrevious ? '#a93636' : step.state === 'wait' ? '#b9c2cc' : sx.color,
+													mt: 2,
+													mx: 0.4,
+													transform: processSteps[index + 1].returnFromPrevious ? 'rotate(180deg)' : undefined,
+												} }
+											/>
+										) }
+									</Box>
+								);
+							}) }
+						</Box>
+					</SectionPanel>
+				</Stack>
 
-        <Stack spacing={2} sx={{ minWidth: 0 }}>
-          <SectionPanel title="Вложения" count={document.attachments.length}>
-            {document.attachments.length === 0 ? (
-              <Typography color="text.secondary" sx={{ fontSize: 12 }}>Файлы отсутствуют</Typography>
-            ) : (
-              <AttachmentDocumentFilesList
-                attachments={document.attachments}
-                loadingPreviewId={previewAttachmentId}
-                loadingDownloadId={downloadingAttachmentId}
-                onPreview={(attachment) => void openAttachmentPreview(attachment)}
-                onDownload={(attachment) => void downloadAttachment(attachment)}
-              />
-            )}
-          </SectionPanel>
+				<Stack spacing={ 2 } sx={ { minWidth: 0 } }>
+					{ document.executor ? (
+						<SectionPanel title="Исполнитель">
+							<>
+								<AttributeRow label="Исполнитель">
+									{ document.executor.name
+										? [ document.executor.name, document.executor.login && `(${ document.executor.login })` ].filter(Boolean).join(' ')
+										: 'Не назначен' }
+								</AttributeRow>
+								<AttributeRow label="Роль">{ document.executor.roleLabel || document.executor.role }</AttributeRow>
+								<AttributeRow label="Задача">{ document.executor.taskTitle }</AttributeRow>
+								<AttributeRow label="Статус задачи">
+									{ document.executor.taskStatus ? executorTaskStatusLabels[document.executor.taskStatus] : undefined }
+								</AttributeRow>
+							</>
+						</SectionPanel>
+					) : <></> }
 
-          <SectionPanel title="Доступ" action={<Typography color="secondary.main" sx={{ fontSize: 11.5, cursor: 'pointer' }}>Изменить</Typography>}>
+					<SectionPanel title="Вложения" count={ document.attachments.length }>
+						{ document.attachments.length === 0 ? (
+							<Typography color="text.secondary" sx={ { fontSize: 12 } }>Файлы отсутствуют</Typography>
+						) : (
+							<AttachmentDocumentFilesList
+								attachments={ document.attachments }
+								loadingPreviewId={ previewAttachmentId }
+								loadingDownloadId={ downloadingAttachmentId }
+								onPreview={ (attachment) => void openAttachmentPreview(attachment) }
+								onDownload={ (attachment) => void downloadAttachment(attachment) }
+							/>
+						) }
+					</SectionPanel>
+
+					{/* <SectionPanel title="Доступ" action={<Typography color="secondary.main" sx={{ fontSize: 11.5, cursor: 'pointer' }}>Изменить</Typography>}>
             {[['Просмотр', '15'], ['Редактирование', '5'], ['Администрирование', '2']].map(([role, count]) => (
               <Stack key={role} direction="row" sx={{ py: 0.45, justifyContent: 'space-between' }}>
                 <Typography sx={{ fontSize: 11.8 }}>{role}</Typography>
                 <Typography sx={{ fontSize: 11.8 }}>{count}</Typography>
               </Stack>
             ))}
-          </SectionPanel>
-        </Stack>
-      </Box>
-      <FilePreviewDialog file={previewFile} onClose={() => setPreviewFile(null)} />
-    </Stack>
-  );
+          </SectionPanel> */ }
+				</Stack>
+			</Box>
+			<FilePreviewDialog file={ previewFile } onClose={ () => setPreviewFile(null) }/>
+		</Stack>
+	);
 }

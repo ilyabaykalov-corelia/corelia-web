@@ -36,7 +36,7 @@ const statusOptions: Array<{ value: ApprovalStatus | ''; label: string }> = [
   { value: 'CREATED', label: 'Создан' },
   { value: 'IN_WORK', label: 'В работе' },
   { value: 'ON_APPROVAL', label: 'На согласовании' },
-  { value: 'NEEDS_REVISION', label: 'На доработке' },
+  { value: 'NEEDS_REVISION', label: 'Отправлено на доработку' },
   { value: 'APPROVED', label: 'Согласован' },
   { value: 'REJECTED', label: 'Отклонен' },
 ];

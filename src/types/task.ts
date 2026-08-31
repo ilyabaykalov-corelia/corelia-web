@@ -1,3 +1,5 @@
+import type { DocumentApprovalRequest, DocumentRecord, DocumentWorkflowAction } from './document';
+
 export type TaskStatus = 'NEW' | 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'ABORTED';
 export type TaskQueue = 'MY' | 'AVAILABLE';
 
@@ -7,6 +9,7 @@ export interface PlatformTask {
   title?: string;
   description?: string | null;
   status?: TaskStatus;
+  availableActions?: DocumentWorkflowAction[];
   executorRole?: string | null;
   managerRole?: string | null;
   assignee?: string | null;
@@ -33,6 +36,11 @@ export interface TaskOperationResponse {
   message?: string;
 }
 
+export interface TaskActionResponse {
+  task: PlatformTask;
+  document: DocumentRecord;
+}
+
 export interface TaskSummary {
   my: number;
   available: number;
@@ -42,3 +50,5 @@ export interface TaskCountersDelta {
   my?: number;
   available?: number;
 }
+
+export type TaskActionRequest = DocumentApprovalRequest;

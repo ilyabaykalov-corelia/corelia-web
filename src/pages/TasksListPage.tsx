@@ -89,7 +89,7 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<TaskStatus | ''>('');
-  const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
+  const [runningActionKey, setRunningActionKey] = useState<string | null>(null);
   const config = queueConfig[queue];
   const Icon = config.icon;
 
@@ -134,25 +134,32 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
     void loadTasks('', '');
   };
 
-  const startTask = async (task: PlatformTask) => {
-    setStartingTaskId(task.id);
+  const runTaskAction = async (task: PlatformTask, action: NonNullable<PlatformTask['availableActions']>[number]) => {
+    const actionKey = `${task.id}:${action.code}`;
+    setRunningActionKey(actionKey);
     setError(null);
 
     try {
-      await tasksApi.start(task.id);
-      setItems((current) => {
-        if (queue === 'AVAILABLE') return current.filter((item) => item.id !== task.id);
-        return current.map((item) => item.id === task.id ? { ...item, status: 'STARTED' } : item);
-      });
+      await tasksApi.action(task.id, action.status ? { approvalStatus: action.status } : { actionCode: action.code });
+      setItems((current) => current.filter((item) => item.id !== task.id));
       if (queue === 'AVAILABLE') {
         window.dispatchEvent(new CustomEvent(taskCountersChangedEvent, {
           detail: { my: 1, available: -1 },
         }));
+      } else if (action.status === 'ON_APPROVAL') {
+        window.dispatchEvent(new CustomEvent(taskCountersChangedEvent, {
+          detail: { my: -1, available: 1 },
+        }));
+      } else {
+        window.dispatchEvent(new CustomEvent(taskCountersChangedEvent, {
+          detail: { my: -1 },
+        }));
       }
-    } catch (startError) {
-      setError(startError instanceof Error ? startError.message : 'Не удалось взять задачу в работу');
+      window.setTimeout(() => void loadTasks(), 1000);
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Не удалось выполнить действие по задаче');
     } finally {
-      setStartingTaskId(null);
+      setRunningActionKey(null);
     }
   };
 
@@ -206,7 +213,7 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
                   key={task.id}
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', lg: 'minmax(220px, 1fr) 130px 150px 170px auto auto' },
+                    gridTemplateColumns: { xs: '1fr', lg: 'minmax(220px, 1fr) 130px 150px 170px minmax(180px, auto) auto' },
                     gap: 1,
                     alignItems: 'center',
                     border: 1,
@@ -242,17 +249,24 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
                   </Box>
                   <Typography color="text.secondary" sx={{ fontSize: 13 }}>Создана: {taskDate(task.created)}</Typography>
                   <Typography color="text.secondary" sx={{ fontSize: 13 }}>Срок: {taskDate(task.dueDate)}</Typography>
-                  {queue === 'AVAILABLE' && (
-                    <Button
-                      size="small"
-                      variant="contained"
-                      disabled={startingTaskId === task.id}
-                      onClick={() => void startTask(task)}
-                      sx={{ justifySelf: { xs: 'stretch', lg: 'end' }, whiteSpace: 'nowrap' }}
-                    >
-                      {startingTaskId === task.id ? 'Берем...' : 'Взять в работу'}
-                    </Button>
-                  )}
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} sx={{ justifySelf: { xs: 'stretch', lg: 'end' }, flexWrap: 'wrap' }}>
+                    {(task.availableActions ?? []).map((action) => {
+                      const actionKey = `${task.id}:${action.code}`;
+                      return (
+                        <Button
+                          key={action.code}
+                          size="small"
+                          variant={action.tone === 'error' ? 'outlined' : 'contained'}
+                          color={action.tone === 'error' ? 'error' : action.tone}
+                          disabled={runningActionKey === actionKey}
+                          onClick={() => void runTaskAction(task, action)}
+                          sx={{ whiteSpace: 'nowrap' }}
+                        >
+                          {runningActionKey === actionKey ? 'Выполняем...' : action.label}
+                        </Button>
+                      );
+                    })}
+                  </Stack>
                   <Tooltip title="Открыть документ">
                     <span>
                       <IconButton
