@@ -1,10 +1,12 @@
 export type ApprovalStatus = 'CREATED' | 'IN_WORK' | 'ON_APPROVAL' | 'NEEDS_REVISION' | 'APPROVED' | 'REJECTED';
 export type ApprovalDecision = Exclude<ApprovalStatus, 'CREATED'>;
-export type DocumentStatus = 'Создан' | 'В работе' | 'На согласовании' | 'На доработке' | 'Согласован' | 'Отклонен';
+export type DocumentWorkflowActionCode = ApprovalDecision;
+export type DocumentStatus = 'Создан' | 'В работе' | 'На согласовании' | 'Отправлено на доработку' | 'Согласован' | 'Отклонен';
 export type DocumentActionTone = 'success' | 'warning' | 'error';
 
 export interface DocumentWorkflowAction {
-  status: ApprovalDecision;
+  code: DocumentWorkflowActionCode;
+  status?: ApprovalDecision;
   label: string;
   tone: DocumentActionTone;
 }
@@ -34,7 +36,17 @@ export interface DocumentRecord {
   documentStatus: DocumentStatus;
   processInstanceId?: string;
   availableActions?: DocumentWorkflowAction[];
+  executor?: DocumentExecutor | null;
   attachments: Attachment[];
+}
+
+export interface DocumentExecutor {
+  login?: string | null;
+  name?: string | null;
+  role?: string | null;
+  roleLabel?: string | null;
+  taskStatus?: 'NEW' | 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'ABORTED';
+  taskTitle?: string;
 }
 
 export interface DocumentSearchRequest {
@@ -67,7 +79,8 @@ export interface CreateDocumentRequest {
 export interface UpdateDocumentRequest extends CreateDocumentRequest {}
 
 export interface DocumentApprovalRequest {
-  approvalStatus: ApprovalDecision;
+  actionCode?: DocumentWorkflowActionCode;
+  approvalStatus?: ApprovalDecision;
 }
 
 export interface AttachmentUpload {
