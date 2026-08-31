@@ -103,16 +103,17 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
         status: nextStatus || undefined,
       });
       setItems(result.items);
+      window.dispatchEvent(new CustomEvent(taskCountersChangedEvent, {
+        detail: queue === 'MY'
+          ? { myTotal: result.total }
+          : { availableTotal: result.total },
+      }));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить задачи');
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    void loadTasks('', '');
-  }, [queue]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {

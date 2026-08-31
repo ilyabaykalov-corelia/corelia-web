@@ -49,6 +49,8 @@ export interface TaskSummary {
 export interface TaskCountersDelta {
   my?: number;
   available?: number;
+  myTotal?: number;
+  availableTotal?: number;
 }
 
 export type TaskActionRequest = DocumentApprovalRequest;
