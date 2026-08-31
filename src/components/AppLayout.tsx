@@ -119,6 +119,8 @@ export function AppLayout({ children }: PropsWithChildren) {
   }, [dispatch, documentTypes.length]);
 
   useEffect(() => {
+    if (tasksSection) return undefined;
+
     let mounted = true;
 
     tasksApi.summary()
@@ -132,7 +134,7 @@ export function AppLayout({ children }: PropsWithChildren) {
     return () => {
       mounted = false;
     };
-  }, [location.pathname]);
+  }, [location.pathname, tasksSection]);
 
   useEffect(() => {
     const updateTaskCounters = (event: Event) => {
@@ -140,8 +142,8 @@ export function AppLayout({ children }: PropsWithChildren) {
       if (!delta) return;
 
       setTaskCounters((current) => ({
-        my: Math.max(0, current.my + (delta.my ?? 0)),
-        available: Math.max(0, current.available + (delta.available ?? 0)),
+        my: delta.myTotal ?? Math.max(0, current.my + (delta.my ?? 0)),
+        available: delta.availableTotal ?? Math.max(0, current.available + (delta.available ?? 0)),
       }));
     };
 
