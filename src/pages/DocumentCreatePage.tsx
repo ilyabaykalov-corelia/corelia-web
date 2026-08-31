@@ -207,10 +207,10 @@ export function DocumentCreatePage() {
                 <TextField {...fieldProps} type="date" value={form.contractDate} onChange={(event) => updateField('contractDate', event.target.value)} />
               </FormField>
               <FormField label="Номер договора" required>
-                <TextField {...fieldProps} value={form.contractNumber} onChange={(event) => updateField('contractNumber', event.target.value)} placeholder="Введите номер договора" inputProps={{ maxLength: 64 }} />
+                <TextField {...fieldProps} value={form.contractNumber} onChange={(event) => updateField('contractNumber', event.target.value)} placeholder="Введите номер договора" slotProps={{ htmlInput: { maxLength: 64 } }} />
               </FormField>
               <FormField label="СНИЛС" required>
-                <TextField {...fieldProps} value={form.snils} onChange={(event) => updateSnils(event.target.value)} placeholder="Введите СНИЛС" inputProps={{ maxLength: 14, inputMode: 'numeric' }} />
+                <TextField {...fieldProps} value={form.snils} onChange={(event) => updateSnils(event.target.value)} placeholder="Введите СНИЛС" slotProps={{ htmlInput: { maxLength: 14, inputMode: 'numeric' } }} />
               </FormField>
             </Box>
           </SectionPanel>
@@ -231,7 +231,7 @@ export function DocumentCreatePage() {
                   onClick={() => fileInputRef.current?.click()}
                   sx={{ minHeight: 300, border: '1px dashed', borderColor: dragActive ? 'primary.main' : '#aab7c7', bgcolor: dragActive ? '#f1f9f4' : '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer', px: 2, textAlign: 'center', outline: 'none', '&:focus-visible': { boxShadow: '0 0 0 3px rgba(20,148,71,.14)' } }}
                 >
-                  <Stack alignItems="center" spacing={0.8}>
+                  <Stack spacing={0.8} sx={{ alignItems: 'center' }}>
                     <CloudUploadOutlinedIcon sx={{ color: '#548bc9', fontSize: 56 }} />
                     <Typography sx={{ fontSize: 16, fontWeight: 600 }}>Перетащите файлы сюда</Typography>
                     <Typography sx={{ fontSize: 13 }}>или нажмите для выбора файлов</Typography>
@@ -239,7 +239,7 @@ export function DocumentCreatePage() {
                   </Stack>
                   <input ref={fileInputRef} type="file" multiple hidden accept={supportedFormats} onChange={(event) => { if (event.target.files) addFiles(event.target.files); event.target.value = ''; }} />
                 </Box>
-                <Stack alignItems="center" sx={{ mt: 1.4 }}>
+                <Stack sx={{ mt: 1.4, alignItems: 'center' }}>
                   <Button variant="outlined" color="inherit" startIcon={<AttachFileIcon />} onClick={() => fileInputRef.current?.click()}>Выбрать файлы</Button>
                 </Stack>
               </Box>
@@ -271,9 +271,9 @@ export function DocumentCreatePage() {
           </Box>
         )}
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ position: 'sticky', bottom: 0, zIndex: 3, bgcolor: 'rgba(255,255,255,.98)', borderTop: 1, borderColor: 'divider', mx: { xs: -2, md: -2 }, px: { xs: 2, md: 2.5 }, py: 1.5 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ position: 'sticky', bottom: 0, zIndex: 3, bgcolor: 'rgba(255,255,255,.98)', borderTop: 1, borderColor: 'divider', mx: { xs: -2, md: -2 }, px: { xs: 2, md: 2.5 }, py: 1.5, justifyContent: 'space-between' }}>
           <Button variant="outlined" color="inherit" onClick={() => navigate('/')} disabled={saving}>Отмена</Button>
-          <Stack direction="row" spacing={1.25} justifyContent="flex-end">
+          <Stack direction="row" spacing={1.25} sx={{ justifyContent: 'flex-end' }}>
             {activeStep > 0 && <Button variant="outlined" color="inherit" startIcon={<ArrowBackIcon />} onClick={() => { setActiveStep((current) => current - 1); setValidationError(null); }} disabled={saving}>Назад</Button>}
             {activeStep < steps.length - 1 ? (
               <Button variant="contained" endIcon={<ArrowForwardIcon />} onClick={moveNext}>Далее</Button>
