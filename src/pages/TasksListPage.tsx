@@ -5,19 +5,22 @@ import {
   Button,
   Chip,
   CircularProgress,
+  IconButton,
   MenuItem,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import {
   AssignmentTurnedInOutlined as AssignmentTurnedInOutlinedIcon,
+  OpenInNew as OpenInNewIcon,
   PersonAddAltOutlined as PersonAddAltOutlinedIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { SectionPanel } from '../components/common/SectionPanel';
-import { tasksApi } from '../api/tasks';
+import { taskCountersChangedEvent, tasksApi } from '../api/tasks';
 import type { PlatformTask, TaskQueue, TaskStatus } from '../types/task';
 import { formatDate } from '../utils/format';
 
@@ -86,6 +89,7 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<TaskStatus | ''>('');
+  const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const config = queueConfig[queue];
   const Icon = config.icon;
 
@@ -128,6 +132,28 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
     setQuery('');
     setStatus('');
     void loadTasks('', '');
+  };
+
+  const startTask = async (task: PlatformTask) => {
+    setStartingTaskId(task.id);
+    setError(null);
+
+    try {
+      await tasksApi.start(task.id);
+      setItems((current) => {
+        if (queue === 'AVAILABLE') return current.filter((item) => item.id !== task.id);
+        return current.map((item) => item.id === task.id ? { ...item, status: 'STARTED' } : item);
+      });
+      if (queue === 'AVAILABLE') {
+        window.dispatchEvent(new CustomEvent(taskCountersChangedEvent, {
+          detail: { my: 1, available: -1 },
+        }));
+      }
+    } catch (startError) {
+      setError(startError instanceof Error ? startError.message : 'Не удалось взять задачу в работу');
+    } finally {
+      setStartingTaskId(null);
+    }
   };
 
   return (
@@ -180,7 +206,7 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
                   key={task.id}
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', lg: 'minmax(220px, 1fr) 130px 150px 170px auto' },
+                    gridTemplateColumns: { xs: '1fr', lg: 'minmax(220px, 1fr) 130px 150px 170px auto auto' },
                     gap: 1,
                     alignItems: 'center',
                     border: 1,
@@ -216,17 +242,32 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
                   </Box>
                   <Typography color="text.secondary" sx={{ fontSize: 13 }}>Создана: {taskDate(task.created)}</Typography>
                   <Typography color="text.secondary" sx={{ fontSize: 13 }}>Срок: {taskDate(task.dueDate)}</Typography>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    disabled={!documentId}
-                    onClick={() => {
-                      if (documentId) navigate(`/documents/${documentId}`);
-                    }}
-                    sx={{ justifySelf: { xs: 'stretch', lg: 'end' } }}
-                  >
-                    Открыть документ
-                  </Button>
+                  {queue === 'AVAILABLE' && (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disabled={startingTaskId === task.id}
+                      onClick={() => void startTask(task)}
+                      sx={{ justifySelf: { xs: 'stretch', lg: 'end' }, whiteSpace: 'nowrap' }}
+                    >
+                      {startingTaskId === task.id ? 'Берем...' : 'Взять в работу'}
+                    </Button>
+                  )}
+                  <Tooltip title="Открыть документ">
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={!documentId}
+                        aria-label="Открыть документ"
+                        onClick={() => {
+                          if (documentId) navigate(`/documents/${documentId}`);
+                        }}
+                        sx={{ justifySelf: { xs: 'stretch', lg: 'end' }, border: 1, borderColor: 'divider', borderRadius: 1 }}
+                      >
+                        <OpenInNewIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                 </Box>
               );
             })}
