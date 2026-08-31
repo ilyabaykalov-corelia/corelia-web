@@ -1,6 +1,13 @@
 export type ApprovalStatus = 'CREATED' | 'IN_WORK' | 'ON_APPROVAL' | 'NEEDS_REVISION' | 'APPROVED' | 'REJECTED';
 export type ApprovalDecision = Exclude<ApprovalStatus, 'CREATED'>;
 export type DocumentStatus = 'Создан' | 'В работе' | 'На согласовании' | 'На доработке' | 'Согласован' | 'Отклонен';
+export type DocumentActionTone = 'success' | 'warning' | 'error';
+
+export interface DocumentWorkflowAction {
+  status: ApprovalDecision;
+  label: string;
+  tone: DocumentActionTone;
+}
 
 export interface DocumentType {
   id: string;
@@ -26,6 +33,7 @@ export interface DocumentRecord {
   approvalStatus: ApprovalStatus;
   documentStatus: DocumentStatus;
   processInstanceId?: string;
+  availableActions?: DocumentWorkflowAction[];
   attachments: Attachment[];
 }
 

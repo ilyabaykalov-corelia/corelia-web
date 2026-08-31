@@ -27,7 +27,18 @@ export interface TaskSearchResponse {
   total: number;
 }
 
+export interface TaskOperationResponse {
+  successIds?: string[];
+  failedIds?: string[];
+  message?: string;
+}
+
 export interface TaskSummary {
   my: number;
   available: number;
+}
+
+export interface TaskCountersDelta {
+  my?: number;
+  available?: number;
 }

@@ -38,7 +38,7 @@ import { AttachmentDocumentFilesList } from '../features/documents/components/Do
 import { formatSnils, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
 import { clearCurrentDocument, completeDocumentApproval, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, updateDocument } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { ApprovalDecision, ApprovalStatus, Attachment, DocumentType, UpdateDocumentRequest } from '../types/document';
+import type { ApprovalDecision, ApprovalStatus, Attachment, DocumentType, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
 import { formatDate } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
@@ -97,12 +97,12 @@ const processCopy: Record<ApprovalStatus, ProcessStep[]> = {
   ],
 };
 
-const actionCopy: Partial<Record<ApprovalDecision, { label: string; tone: 'success' | 'warning' | 'error' }>> = {
-  IN_WORK: { label: 'Взять в работу', tone: 'success' },
-  ON_APPROVAL: { label: 'Отправить на согласование', tone: 'success' },
-  NEEDS_REVISION: { label: 'Отправить на доработку', tone: 'warning' },
-  APPROVED: { label: 'Согласовать', tone: 'success' },
-  REJECTED: { label: 'Отклонить', tone: 'error' },
+const actionCopy: Partial<Record<ApprovalDecision, DocumentWorkflowAction>> = {
+  IN_WORK: { status: 'IN_WORK', label: 'Взять в работу', tone: 'success' },
+  ON_APPROVAL: { status: 'ON_APPROVAL', label: 'Отправить на согласование', tone: 'success' },
+  NEEDS_REVISION: { status: 'NEEDS_REVISION', label: 'Отправить на доработку', tone: 'warning' },
+  APPROVED: { status: 'APPROVED', label: 'Согласовать', tone: 'success' },
+  REJECTED: { status: 'REJECTED', label: 'Отклонить', tone: 'error' },
 };
 
 const actionsByStatus: Record<ApprovalStatus, ApprovalDecision[]> = {
@@ -113,6 +113,8 @@ const actionsByStatus: Record<ApprovalStatus, ApprovalDecision[]> = {
   APPROVED: [],
   REJECTED: [],
 };
+
+const isWorkflowAction = (action: DocumentWorkflowAction | undefined): action is DocumentWorkflowAction => Boolean(action);
 
 const stepStyles: Record<ProcessStepState, { borderColor: string; backgroundColor: string; color: string }> = {
   done: { borderColor: '#b9dfc5', backgroundColor: '#eef8f1', color: '#17623c' },
@@ -156,7 +158,7 @@ export function DocumentDetailPage() {
 
   const processSteps = processCopy[document.approvalStatus];
   const actionMenuOpen = Boolean(actionAnchorEl);
-  const availableActions = actionsByStatus[document.approvalStatus];
+  const availableActions = document.availableActions ?? actionsByStatus[document.approvalStatus].map((action) => actionCopy[action]).filter(isWorkflowAction);
   const terminalDocument = document.approvalStatus === 'APPROVED' || document.approvalStatus === 'REJECTED';
   const decisionDisabled = editing || saving || availableActions.length === 0;
   const availableDocumentTypes = (() => {
@@ -330,17 +332,16 @@ export function DocumentDetailPage() {
                 <ListItemText primary="Процесс завершен" primaryTypographyProps={{ fontSize: 12.5 }} />
               </MenuItem>
             ) : availableActions.map((action) => {
-              const copy = actionCopy[action];
               return (
-                <MenuItem key={action} disabled={decisionDisabled} onClick={() => void completeApproval(action)}>
+                <MenuItem key={action.status} disabled={decisionDisabled} onClick={() => void completeApproval(action.status)}>
                   <ListItemIcon>
-                    {copy?.tone === 'error' ? (
+                    {action.tone === 'error' ? (
                       <WarningAmberOutlinedIcon color="error" fontSize="small" />
                     ) : (
-                      <CheckCircleIcon color={copy?.tone === 'warning' ? 'warning' : 'success'} fontSize="small" />
+                      <CheckCircleIcon color={action.tone === 'warning' ? 'warning' : 'success'} fontSize="small" />
                     )}
                   </ListItemIcon>
-                  <ListItemText primary={copy?.label ?? action} primaryTypographyProps={{ fontSize: 12.5 }} />
+                  <ListItemText primary={action.label} primaryTypographyProps={{ fontSize: 12.5 }} />
                 </MenuItem>
               );
             })}

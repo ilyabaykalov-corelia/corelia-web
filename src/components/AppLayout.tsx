@@ -46,7 +46,8 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchCurrentUser, fetchDocuments, fetchDocumentTypes, setFilters } from '../store/documentsSlice';
 import { logoutUser } from '../store/authSlice';
 import type { DocumentSearchRequest } from '../types/document';
-import { tasksApi } from '../api/tasks';
+import { taskCountersChangedEvent, tasksApi } from '../api/tasks';
+import type { TaskCountersDelta } from '../types/task';
 
 const expandedDrawerWidth = 240;
 const collapsedDrawerWidth = 72;
@@ -132,6 +133,21 @@ export function AppLayout({ children }: PropsWithChildren) {
       mounted = false;
     };
   }, [location.pathname]);
+
+  useEffect(() => {
+    const updateTaskCounters = (event: Event) => {
+      const delta = (event as CustomEvent<TaskCountersDelta>).detail;
+      if (!delta) return;
+
+      setTaskCounters((current) => ({
+        my: Math.max(0, current.my + (delta.my ?? 0)),
+        available: Math.max(0, current.available + (delta.available ?? 0)),
+      }));
+    };
+
+    window.addEventListener(taskCountersChangedEvent, updateTaskCounters);
+    return () => window.removeEventListener(taskCountersChangedEvent, updateTaskCounters);
+  }, []);
 
   useEffect(() => {
     setMobileOpen(false);
