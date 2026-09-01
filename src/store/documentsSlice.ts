@@ -201,6 +201,30 @@ export const uploadDocumentAttachments = createAsyncThunk(
   },
 );
 
+export const replaceDocumentAttachment = createAsyncThunk(
+  'documents/replaceAttachment',
+  async ({ documentId, attachmentId, attachment }: { documentId: string; attachmentId: string; attachment: AttachmentUpload }, api) => {
+    try {
+      await documentsApi.replaceAttachment(attachmentId, attachment);
+      return await documentsApi.getById(documentId);
+    } catch (error) {
+      return api.rejectWithValue(errorMessage(error));
+    }
+  },
+);
+
+export const deleteDocumentAttachment = createAsyncThunk(
+  'documents/deleteAttachment',
+  async ({ documentId, attachmentId }: { documentId: string; attachmentId: string }, api) => {
+    try {
+      await documentsApi.deleteAttachment(attachmentId);
+      return await documentsApi.getById(documentId);
+    } catch (error) {
+      return api.rejectWithValue(errorMessage(error));
+    }
+  },
+);
+
 /**
  * Скачивает сохраненное вложение через Redux, чтобы React-компоненты не обращались к API-слою напрямую.
  *
@@ -339,6 +363,40 @@ const documentsSlice = createSlice({
         upsertDocument(state.items, state.currentItem);
       })
       .addCase(uploadDocumentAttachments.rejected, (state, action) => {
+        state.saving = false;
+        state.error = String(action.payload ?? action.error.message);
+      })
+      .addCase(replaceDocumentAttachment.pending, (state) => {
+        state.saving = true;
+      })
+      .addCase(replaceDocumentAttachment.fulfilled, (state, action) => {
+        state.saving = false;
+        state.currentItem = {
+          ...action.payload,
+          processInstanceId:
+            action.payload.processInstanceId ??
+            (state.currentItem?.id === action.payload.id ? state.currentItem.processInstanceId : undefined),
+        };
+        upsertDocument(state.items, state.currentItem);
+      })
+      .addCase(replaceDocumentAttachment.rejected, (state, action) => {
+        state.saving = false;
+        state.error = String(action.payload ?? action.error.message);
+      })
+      .addCase(deleteDocumentAttachment.pending, (state) => {
+        state.saving = true;
+      })
+      .addCase(deleteDocumentAttachment.fulfilled, (state, action) => {
+        state.saving = false;
+        state.currentItem = {
+          ...action.payload,
+          processInstanceId:
+            action.payload.processInstanceId ??
+            (state.currentItem?.id === action.payload.id ? state.currentItem.processInstanceId : undefined),
+        };
+        upsertDocument(state.items, state.currentItem);
+      })
+      .addCase(deleteDocumentAttachment.rejected, (state, action) => {
         state.saving = false;
         state.error = String(action.payload ?? action.error.message);
       });
