@@ -1,6 +1,6 @@
 export type ApprovalStatus = 'CREATED' | 'IN_WORK' | 'ON_APPROVAL' | 'NEEDS_REVISION' | 'APPROVED' | 'REJECTED';
 export type ApprovalDecision = Exclude<ApprovalStatus, 'CREATED'>;
-export type DocumentWorkflowActionCode = ApprovalDecision;
+export type DocumentWorkflowActionCode = string;
 export type DocumentStatus = 'Создан' | 'В работе' | 'На согласовании' | 'Отправлено на доработку' | 'Согласован' | 'Отклонен';
 export type DocumentActionTone = 'success' | 'warning' | 'error';
 
@@ -9,6 +9,7 @@ export interface DocumentWorkflowAction {
   status?: ApprovalDecision;
   label: string;
   tone: DocumentActionTone;
+  result?: Record<string, unknown>;
 }
 
 export interface DocumentType {
@@ -18,10 +19,13 @@ export interface DocumentType {
 
 export interface Attachment {
   id: string;
+  logicalAttachmentId?: string;
   documentId: string;
   fileName: string;
   contentType: string;
   size: number;
+  version?: number;
+  current?: boolean;
   uploadedAt: string;
 }
 
@@ -81,6 +85,7 @@ export interface UpdateDocumentRequest extends CreateDocumentRequest {}
 export interface DocumentApprovalRequest {
   actionCode?: DocumentWorkflowActionCode;
   approvalStatus?: ApprovalDecision;
+  parameters?: Record<string, unknown>;
 }
 
 export interface AttachmentUpload {

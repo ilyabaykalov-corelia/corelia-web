@@ -49,6 +49,12 @@ export const documentsApi = {
     apiClient.post<DocumentRecord>(`${apiRoot}/document/${id}/approval`, payload),
   uploadAttachments: (documentId: string, attachments: AttachmentUpload[]) =>
     apiClient.post<Attachment[]>(`${apiRoot}/document/${documentId}/attachment`, { attachments }),
+  replaceAttachment: (attachmentId: string, attachment: AttachmentUpload) =>
+    apiClient.put<Attachment>(`${apiRoot}/attachment/${attachmentId}`, { attachments: [attachment] }),
+  deleteAttachment: (attachmentId: string) =>
+    apiClient.delete<void>(`${apiRoot}/attachment/${attachmentId}`),
+  getAttachmentVersions: (attachmentId: string) =>
+    apiClient.get<Attachment[]>(`${apiRoot}/attachment/${attachmentId}/versions`),
   attachmentUrl,
   downloadAttachment,
 };

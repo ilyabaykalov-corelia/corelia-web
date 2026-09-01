@@ -1,4 +1,4 @@
-import { useEffect, useState, type PropsWithChildren } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type PropsWithChildren } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
 	Alert,
@@ -6,6 +6,9 @@ import {
 	Breadcrumbs,
 	Button,
 	CircularProgress,
+	Dialog,
+	DialogContent,
+	DialogTitle,
 	IconButton,
 	Link,
 	ListItemIcon,
@@ -17,10 +20,12 @@ import {
 	Tab,
 	Tabs,
 	TextField,
+	Tooltip,
 	Typography,
 } from '@mui/material';
 import {
 	ArrowForward as ArrowForwardIcon,
+	Add as AddIcon,
 	CheckCircle as CheckCircleIcon,
 	Close as CloseIcon,
 	EditOutlined as EditOutlinedIcon,
@@ -36,9 +41,11 @@ import { FilePreviewDialog } from '../components/FilePreviewDialog';
 import { DocumentStatusChip } from '../components/DocumentStatusChip';
 import { AttachmentDocumentFilesList } from '../features/documents/components/DocumentFilesList';
 import { formatSnils, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
-import { clearCurrentDocument, completeDocumentApproval, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, updateDocument } from '../store/documentsSlice';
+import { documentsApi } from '../api/documents';
+import { clearCurrentDocument, completeDocumentApproval, deleteDocumentAttachment, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, replaceDocumentAttachment, updateDocument, uploadDocumentAttachments } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { ApprovalStatus, Attachment, DocumentType, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
+import { fileToAttachmentUpload } from '../utils/file';
 import { formatDate } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
@@ -121,7 +128,7 @@ function StepIcon({ state }: { state: ProcessStepState }) {
 export function DocumentDetailPage() {
 	const { id } = useParams();
 	const dispatch = useAppDispatch();
-	const { currentItem: document, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
+	const { currentItem: document, currentUser, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
 	const [ editing, setEditing ] = useState(false);
 	const [ form, setForm ] = useState<UpdateDocumentRequest | null>(null);
 	const [ validationError, setValidationError ] = useState<string | null>(null);
@@ -131,6 +138,12 @@ export function DocumentDetailPage() {
 	const [ previewAttachmentId, setPreviewAttachmentId ] = useState<string | null>(null);
 	const [ downloadingAttachmentId, setDownloadingAttachmentId ] = useState<string | null>(null);
 	const [ previewError, setPreviewError ] = useState<string | null>(null);
+	const [ replacingAttachment, setReplacingAttachment ] = useState<Attachment | null>(null);
+	const [ versionsAttachment, setVersionsAttachment ] = useState<Attachment | null>(null);
+	const [ previousVersions, setPreviousVersions ] = useState<Attachment[]>([]);
+	const [ versionsLoading, setVersionsLoading ] = useState(false);
+	const addAttachmentInputRef = useRef<HTMLInputElement | null>(null);
+	const replaceAttachmentInputRef = useRef<HTMLInputElement | null>(null);
 
 	useEffect(() => {
 		if (id) void dispatch(fetchDocumentById(id));
@@ -150,7 +163,9 @@ export function DocumentDetailPage() {
 	const processSteps = processCopy[document.approvalStatus];
 	const actionMenuOpen = Boolean(actionAnchorEl);
 	const availableActions = document.availableActions ?? [];
-	const terminalDocument = document.approvalStatus === 'APPROVED' || document.approvalStatus === 'REJECTED';
+	const documentOperatorCanEdit = document.approvalStatus === 'IN_WORK'
+		&& document.executor?.login === currentUser?.login
+		&& document.executor?.role === 'document_operator';
 	const decisionDisabled = editing || saving || availableActions.length === 0;
 	const availableDocumentTypes = (() => {
 		const baseTypes = documentTypes.length > 0 ? documentTypes : [ fallbackDocumentType ];
@@ -233,7 +248,9 @@ export function DocumentDetailPage() {
 		try {
 			await dispatch(completeDocumentApproval({
 				id: document.id,
-				payload: action.status ? { approvalStatus: action.status } : { actionCode: action.code },
+				payload: action.result
+					? { actionCode: action.code, parameters: action.result }
+					: action.status ? { approvalStatus: action.status } : { actionCode: action.code },
 			})).unwrap();
 		} catch (submitError) {
 			setActionError(submitError instanceof Error ? submitError.message : String(submitError));
@@ -275,6 +292,72 @@ export function DocumentDetailPage() {
 		}
 	};
 
+	const uploadAttachments = async (event: ChangeEvent<HTMLInputElement>) => {
+		const files = Array.from(event.target.files ?? []);
+		event.target.value = '';
+		if (files.length === 0) return;
+
+		setActionError(null);
+		try {
+			const attachments = await Promise.all(files.map(fileToAttachmentUpload));
+			await dispatch(uploadDocumentAttachments({ documentId: document.id, attachments })).unwrap();
+		} catch (uploadError) {
+			setActionError(uploadError instanceof Error ? uploadError.message : String(uploadError));
+		}
+	};
+
+	const replaceAttachment = async (event: ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		event.target.value = '';
+		const attachment = replacingAttachment;
+		setReplacingAttachment(null);
+		if (!file || !attachment) return;
+
+		setActionError(null);
+		try {
+			await dispatch(replaceDocumentAttachment({
+				documentId: document.id,
+				attachmentId: attachment.id,
+				attachment: await fileToAttachmentUpload(file),
+			})).unwrap();
+		} catch (replaceError) {
+			setActionError(replaceError instanceof Error ? replaceError.message : String(replaceError));
+		}
+	};
+
+	const deleteAttachment = async (attachment: Attachment) => {
+		if (!window.confirm(`Удалить вложение "${attachment.fileName}"?`)) return;
+
+		setActionError(null);
+		try {
+			await dispatch(deleteDocumentAttachment({ documentId: document.id, attachmentId: attachment.id })).unwrap();
+		} catch (deleteError) {
+			setActionError(deleteError instanceof Error ? deleteError.message : String(deleteError));
+		}
+	};
+
+	const openPreviousVersions = async (attachment: Attachment) => {
+		setVersionsAttachment(attachment);
+		setPreviousVersions([]);
+		setVersionsLoading(true);
+		setActionError(null);
+
+		try {
+			setPreviousVersions(await documentsApi.getAttachmentVersions(attachment.id));
+		} catch (versionsError) {
+			setActionError(versionsError instanceof Error ? versionsError.message : String(versionsError));
+			setVersionsAttachment(null);
+		} finally {
+			setVersionsLoading(false);
+		}
+	};
+
+	const closePreviousVersions = () => {
+		setVersionsAttachment(null);
+		setPreviousVersions([]);
+		setVersionsLoading(false);
+	};
+
 	return (
 		<Stack spacing={ 2 }>
 			<Breadcrumbs separator="›" sx={ { fontSize: 12.5 } }>
@@ -296,7 +379,7 @@ export function DocumentDetailPage() {
 							</Button>
 						</>
 					) : (
-						<Button variant="outlined" color="inherit" startIcon={ <EditOutlinedIcon/> } onClick={ startEdit } disabled={ terminalDocument }>Редактировать</Button>
+						<Button variant="outlined" color="inherit" startIcon={ <EditOutlinedIcon/> } onClick={ startEdit } disabled={ !documentOperatorCanEdit || saving }>Редактировать</Button>
 					) }
 					<Button
 						id="document-actions-button"
@@ -346,7 +429,7 @@ export function DocumentDetailPage() {
 			} }>
 				<Tab label="Общее"/>
 				<Tab label={ `Вложения (${ document.attachments.length })` }/>
-				<Tab label="Процесс"/>
+				<Tab label="История документа"/>
 				{/* <Tab label="Доступ" /> */ }
 			</Tabs>
 
@@ -426,11 +509,7 @@ export function DocumentDetailPage() {
 					{ document.executor ? (
 						<SectionPanel title="Исполнитель">
 							<>
-								<AttributeRow label="Исполнитель">
-									{ document.executor.name
-										? [ document.executor.name, document.executor.login && `(${ document.executor.login })` ].filter(Boolean).join(' ')
-										: 'Не назначен' }
-								</AttributeRow>
+								<AttributeRow label="Исполнитель">{ document.executor.login || 'Не назначен' }</AttributeRow>
 								<AttributeRow label="Роль">{ document.executor.roleLabel || document.executor.role }</AttributeRow>
 								<AttributeRow label="Задача">{ document.executor.taskTitle }</AttributeRow>
 								<AttributeRow label="Статус задачи">
@@ -440,7 +519,34 @@ export function DocumentDetailPage() {
 						</SectionPanel>
 					) : <></> }
 
-					<SectionPanel title="Вложения" count={ document.attachments.length }>
+					<SectionPanel
+						title="Вложения"
+						count={ document.attachments.length }
+						inlineAction={ documentOperatorCanEdit ? (
+							<Tooltip title="Добавить вложение">
+								<span>
+									<IconButton
+										aria-label="Добавить вложение"
+										size="small"
+										disabled={ saving }
+										onClick={ () => addAttachmentInputRef.current?.click() }
+										sx={ {
+											width: 25,
+											height: 25,
+											border: 1,
+											borderColor: 'divider',
+											borderRadius: '50%',
+											color: 'primary.main',
+										} }
+									>
+										<AddIcon sx={ { fontSize: 17 } }/>
+									</IconButton>
+								</span>
+							</Tooltip>
+						) : undefined }
+					>
+						<input ref={ addAttachmentInputRef } type="file" multiple hidden onChange={ (event) => void uploadAttachments(event) }/>
+						<input ref={ replaceAttachmentInputRef } type="file" hidden onChange={ (event) => void replaceAttachment(event) }/>
 						{ document.attachments.length === 0 ? (
 							<Typography color="text.secondary" sx={ { fontSize: 12 } }>Файлы отсутствуют</Typography>
 						) : (
@@ -448,8 +554,15 @@ export function DocumentDetailPage() {
 								attachments={ document.attachments }
 								loadingPreviewId={ previewAttachmentId }
 								loadingDownloadId={ downloadingAttachmentId }
+								canManage={ documentOperatorCanEdit && !saving }
 								onPreview={ (attachment) => void openAttachmentPreview(attachment) }
 								onDownload={ (attachment) => void downloadAttachment(attachment) }
+								onReplace={ (attachment) => {
+									setReplacingAttachment(attachment);
+									replaceAttachmentInputRef.current?.click();
+								} }
+								onDelete={ (attachment) => void deleteAttachment(attachment) }
+								onShowVersions={ (attachment) => void openPreviousVersions(attachment) }
 							/>
 						) }
 					</SectionPanel>
@@ -464,6 +577,33 @@ export function DocumentDetailPage() {
           </SectionPanel> */ }
 				</Stack>
 			</Box>
+			<Dialog open={ Boolean(versionsAttachment) } onClose={ closePreviousVersions } fullWidth maxWidth="sm">
+				<DialogTitle sx={ { fontSize: 16, fontWeight: 600, pr: 6 } }>
+					Прошлые версии{ versionsAttachment ? `: ${ versionsAttachment.fileName }` : '' }
+					<IconButton
+						aria-label="Закрыть"
+						onClick={ closePreviousVersions }
+						sx={ { position: 'absolute', right: 12, top: 10 } }
+					>
+						<CloseIcon/>
+					</IconButton>
+				</DialogTitle>
+				<DialogContent dividers>
+					{ versionsLoading ? (
+						<Stack sx={ { py: 4, alignItems: 'center' } }><CircularProgress size={ 24 }/></Stack>
+					) : previousVersions.length === 0 ? (
+						<Typography color="text.secondary" sx={ { py: 2, fontSize: 12.5 } }>Прошлые версии отсутствуют</Typography>
+					) : (
+						<AttachmentDocumentFilesList
+							attachments={ previousVersions }
+							loadingPreviewId={ previewAttachmentId }
+							loadingDownloadId={ downloadingAttachmentId }
+							onPreview={ (attachment) => void openAttachmentPreview(attachment) }
+							onDownload={ (attachment) => void downloadAttachment(attachment) }
+						/>
+					) }
+				</DialogContent>
+			</Dialog>
 			<FilePreviewDialog file={ previewFile } onClose={ () => setPreviewFile(null) }/>
 		</Stack>
 	);

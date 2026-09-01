@@ -14,6 +14,7 @@ const Header = styled(Stack)(({ theme }) => ({
 interface SectionPanelProps {
   title: string;
   count?: number;
+  inlineAction?: ReactNode;
   action?: ReactNode;
   sx?: PaperProps['sx'];
 }
@@ -31,7 +32,7 @@ interface SectionPanelProps {
  * @param props.sx - Дополнительные MUI-переопределения для точечных layout-задач.
  * @param props.children - Содержимое секции.
  */
-export function SectionPanel({ title, count, action, sx, children }: PropsWithChildren<SectionPanelProps>) {
+export function SectionPanel({ title, count, inlineAction, action, sx, children }: PropsWithChildren<SectionPanelProps>) {
   return (
     <Panel variant="outlined" sx={sx}>
       <Header direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
@@ -40,6 +41,7 @@ export function SectionPanel({ title, count, action, sx, children }: PropsWithCh
           {count !== undefined && (
             <Chip label={count} variant="outlined" size="small" sx={{ height: 25, minWidth: 25, borderRadius: 12, fontSize: 11 }} />
           )}
+          {inlineAction}
         </Stack>
         {action}
       </Header>
