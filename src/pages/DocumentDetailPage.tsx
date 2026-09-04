@@ -46,7 +46,7 @@ import { clearCurrentDocument, completeDocumentApproval, deleteDocumentAttachmen
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { ApprovalStatus, Attachment, DocumentType, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
 import { fileToAttachmentUpload } from '../utils/file';
-import { formatDate } from '../utils/format';
+import { formatDate, formatDateTime } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
 type AttributeField = keyof UpdateDocumentRequest;
@@ -467,6 +467,8 @@ export function DocumentDetailPage() {
 								<AttributeRow label="Дата договора">{ formatDate(document.contractDate) }</AttributeRow>
 								<AttributeRow label="Номер договора">{ document.contractNumber }</AttributeRow>
 								<AttributeRow label="СНИЛС">{ document.snils }</AttributeRow>
+								<AttributeRow label="Дата создания">{ document.createdAt ? formatDateTime(document.createdAt) : undefined }</AttributeRow>
+								<AttributeRow label="Кто создал">{ document.createdBy }</AttributeRow>
 							</>
 						) }
 					</SectionPanel>

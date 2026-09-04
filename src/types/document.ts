@@ -38,6 +38,8 @@ export interface DocumentRecord {
   snils: string;
   approvalStatus: ApprovalStatus;
   documentStatus: DocumentStatus;
+  createdBy?: string;
+  createdAt?: string;
   processInstanceId?: string;
   availableActions?: DocumentWorkflowAction[];
   executor?: DocumentExecutor | null;
