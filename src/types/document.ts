@@ -41,9 +41,14 @@ export interface DocumentRecord {
   createdBy?: string;
   createdAt?: string;
   processInstanceId?: string;
+  workflow?: DocumentWorkflow;
+  attachments: Attachment[];
+}
+
+export interface DocumentWorkflow {
+  task?: Record<string, unknown> | null;
   availableActions?: DocumentWorkflowAction[];
   executor?: DocumentExecutor | null;
-  attachments: Attachment[];
 }
 
 export interface DocumentExecutor {
