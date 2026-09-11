@@ -11,6 +11,7 @@ import type {
   DocumentSearchRequest,
   DocumentSearchResponse,
   UpdateDocumentRequest,
+  DocumentWorkflow,
 } from '../types/document';
 
 const apiRoot = '/api/core/v1';
@@ -31,8 +32,7 @@ interface CoreliaDocumentRecord {
   createdBy?: string;
   createdAt?: string;
   processInstanceId?: string;
-  availableActions?: DocumentRecord['availableActions'];
-  executor?: DocumentRecord['executor'];
+  workflow?: DocumentWorkflow;
   attachments?: Attachment[];
 }
 
@@ -48,8 +48,7 @@ const normalizeDocument = (document: CoreliaDocumentRecord): DocumentRecord => (
   createdBy: document.createdBy,
   createdAt: document.createdAt,
   processInstanceId: document.processInstanceId,
-  availableActions: document.availableActions,
-  executor: document.executor,
+  workflow: document.workflow,
   attachments: document.attachments ?? [],
 });
 

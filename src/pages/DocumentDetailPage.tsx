@@ -162,10 +162,10 @@ export function DocumentDetailPage() {
 
 	const processSteps = processCopy[document.approvalStatus];
 	const actionMenuOpen = Boolean(actionAnchorEl);
-	const availableActions = document.availableActions ?? [];
+	const availableActions = document.workflow?.availableActions ?? [];
 	const documentOperatorCanEdit = document.approvalStatus === 'IN_WORK'
-		&& document.executor?.login === currentUser?.login
-		&& document.executor?.role === 'document_operator';
+		&& document.workflow?.executor?.login === currentUser?.login
+		&& document.workflow?.executor?.role === 'document_operator';
 	const decisionDisabled = editing || saving || availableActions.length === 0;
 	const availableDocumentTypes = (() => {
 		const baseTypes = documentTypes.length > 0 ? documentTypes : [ fallbackDocumentType ];
@@ -508,14 +508,14 @@ export function DocumentDetailPage() {
 				</Stack>
 
 				<Stack spacing={ 2 } sx={ { minWidth: 0 } }>
-					{ document.executor ? (
+					{ document.workflow?.executor ? (
 						<SectionPanel title="Исполнитель">
 							<>
-								<AttributeRow label="Исполнитель">{ document.executor.login || 'Не назначен' }</AttributeRow>
-								<AttributeRow label="Роль">{ document.executor.roleLabel || document.executor.role }</AttributeRow>
-								<AttributeRow label="Задача">{ document.executor.taskTitle }</AttributeRow>
+								<AttributeRow label="Исполнитель">{ document.workflow.executor.login || 'Не назначен' }</AttributeRow>
+								<AttributeRow label="Роль">{ document.workflow.executor.roleLabel || document.workflow.executor.role }</AttributeRow>
+								<AttributeRow label="Задача">{ document.workflow.executor.taskTitle }</AttributeRow>
 								<AttributeRow label="Статус задачи">
-									{ document.executor.taskStatus ? executorTaskStatusLabels[document.executor.taskStatus] : undefined }
+									{ document.workflow.executor.taskStatus ? executorTaskStatusLabels[document.workflow.executor.taskStatus] : undefined }
 								</AttributeRow>
 							</>
 						</SectionPanel>
