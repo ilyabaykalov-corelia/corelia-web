@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 import type { AuthSession, LoginRequest } from '../types/auth';
 
-const apiRoot = '/api/v1';
+const apiRoot = '/api/core/v1';
 
 export const authApi = {
   login: (payload: LoginRequest) => apiClient.post<AuthSession>(`${apiRoot}/auth/login`, payload),

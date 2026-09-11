@@ -13,9 +13,47 @@ import type {
   UpdateDocumentRequest,
 } from '../types/document';
 
-const apiRoot = '/api/v1';
+const apiRoot = '/api/core/v1';
+const defaultDocumentType = 'PDS_CONTRACT';
 
-const attachmentUrl = (attachmentId: string) => buildApiUrl(`${apiRoot}/attachment/${attachmentId}`);
+interface DocumentTypeCatalogResponse {
+  items: Array<{ code?: string; id?: string; name: string }>;
+  total: number;
+}
+
+interface CoreliaDocumentRecord {
+  id: string;
+  typeCode: string;
+  typeName: string;
+  attributes?: Partial<Pick<DocumentRecord, 'contractDate' | 'contractNumber' | 'snils'>>;
+  status: DocumentRecord['approvalStatus'];
+  statusLabel: DocumentRecord['documentStatus'];
+  createdBy?: string;
+  createdAt?: string;
+  processInstanceId?: string;
+  availableActions?: DocumentRecord['availableActions'];
+  executor?: DocumentRecord['executor'];
+  attachments?: Attachment[];
+}
+
+const normalizeDocument = (document: CoreliaDocumentRecord): DocumentRecord => ({
+  id: document.id,
+  documentTypeId: document.typeCode,
+  documentType: document.typeName,
+  contractDate: document.attributes?.contractDate ?? '',
+  contractNumber: document.attributes?.contractNumber ?? '',
+  snils: document.attributes?.snils ?? '',
+  approvalStatus: document.status,
+  documentStatus: document.statusLabel,
+  createdBy: document.createdBy,
+  createdAt: document.createdAt,
+  processInstanceId: document.processInstanceId,
+  availableActions: document.availableActions,
+  executor: document.executor,
+  attachments: document.attachments ?? [],
+});
+
+const attachmentUrl = (attachmentId: string) => buildApiUrl(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`);
 
 const downloadAttachment = async (attachment: Attachment) => {
   const headers = new Headers({ Accept: '*/*' });
@@ -36,25 +74,42 @@ const downloadAttachment = async (attachment: Attachment) => {
 };
 
 export const documentsApi = {
-  getCurrentUser: () => apiClient.get<CurrentUser>(`${apiRoot}/user`),
-  getDocumentTypes: () => apiClient.get<DocumentTypesResponse>(`${apiRoot}/document-types`),
-  search: (filters: DocumentSearchRequest) =>
-    apiClient.post<DocumentSearchResponse>(`${apiRoot}/document/search`, filters),
-  getById: (id: string) => apiClient.get<DocumentRecord>(`${apiRoot}/document/${id}`),
-  create: (payload: CreateDocumentRequest) =>
-    apiClient.post<DocumentRecord>(`${apiRoot}/document`, payload),
-  update: (id: string, payload: UpdateDocumentRequest) =>
-    apiClient.patch<DocumentRecord>(`${apiRoot}/document/${id}`, payload),
+  getCurrentUser: () => apiClient.get<CurrentUser>(`${apiRoot}/auth/me`),
+  getDocumentTypes: async (): Promise<DocumentTypesResponse> => {
+    const response = await apiClient.get<DocumentTypeCatalogResponse>(`${apiRoot}/document-types`);
+    return {
+      ...response,
+      items: response.items
+        .map((item) => ({ id: item.id ?? item.code ?? '', name: item.name }))
+        .filter((item) => item.id.length > 0),
+    };
+  },
+  search: async (filters: DocumentSearchRequest): Promise<DocumentSearchResponse> => {
+    const response = await apiClient.post<{ items: CoreliaDocumentRecord[]; total: number }>(
+      `${apiRoot}/documents/${encodeURIComponent(filters.documentTypeId ?? defaultDocumentType)}/search`,
+      filters,
+    );
+    return { ...response, items: response.items.map(normalizeDocument) };
+  },
+  getById: async (id: string, type = defaultDocumentType) => normalizeDocument(
+    await apiClient.get<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}`),
+  ),
+  create: async ({ documentTypeId, ...attributes }: CreateDocumentRequest) => normalizeDocument(
+    await apiClient.post<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}`, { attributes }),
+  ),
+  update: async (id: string, { documentTypeId, ...attributes }: UpdateDocumentRequest) => normalizeDocument(
+    await apiClient.patch<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}/${encodeURIComponent(id)}`, { attributes }),
+  ),
   completeApproval: (id: string, payload: DocumentApprovalRequest) =>
-    apiClient.post<DocumentRecord>(`${apiRoot}/document/${id}/approval`, payload),
+    apiClient.post<DocumentRecord>(`${apiRoot}/tasks/${encodeURIComponent(id)}/action`, payload),
   uploadAttachments: (documentId: string, attachments: AttachmentUpload[]) =>
-    apiClient.post<Attachment[]>(`${apiRoot}/document/${documentId}/attachment`, { attachments }),
+    apiClient.post<Attachment[]>(`${apiRoot}/documents/${defaultDocumentType}/${encodeURIComponent(documentId)}/attachments`, { attachments }),
   replaceAttachment: (attachmentId: string, attachment: AttachmentUpload) =>
-    apiClient.put<Attachment>(`${apiRoot}/attachment/${attachmentId}`, { attachments: [attachment] }),
+    apiClient.put<Attachment>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`, { attachments: [attachment] }),
   deleteAttachment: (attachmentId: string) =>
-    apiClient.delete<void>(`${apiRoot}/attachment/${attachmentId}`),
+    apiClient.delete<void>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`),
   getAttachmentVersions: (attachmentId: string) =>
-    apiClient.get<Attachment[]>(`${apiRoot}/attachment/${attachmentId}/versions`),
+    apiClient.get<Attachment[]>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}/versions`),
   attachmentUrl,
   downloadAttachment,
 };
