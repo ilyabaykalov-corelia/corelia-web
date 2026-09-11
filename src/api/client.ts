@@ -44,7 +44,7 @@ const refreshSession = async () => {
   const refreshToken = getStoredRefreshToken();
   if (!currentSession || !refreshToken) return false;
 
-  const response = await fetch(buildApiUrl('/api/v1/auth/refresh'), {
+  const response = await fetch(buildApiUrl('/api/core/v1/auth/refresh'), {
     method: 'POST',
     headers: {
       Accept: 'application/json',
