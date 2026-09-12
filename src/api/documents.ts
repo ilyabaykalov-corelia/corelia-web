@@ -12,6 +12,7 @@ import type {
   DocumentSearchResponse,
   UpdateDocumentRequest,
   DocumentWorkflow,
+  DocumentVersion,
 } from '../types/document';
 
 const apiRoot = '/api/core/v1';
@@ -23,6 +24,11 @@ interface DocumentTypeCatalogResponse {
 }
 
 interface CoreliaDocumentRecord {
+  version?: number;
+  currentVersion?: number;
+  changeToken?: string;
+  versionCreatedBy?: string;
+  versionCreatedAt?: string;
   id: string;
   typeCode: string;
   typeName: string;
@@ -37,6 +43,11 @@ interface CoreliaDocumentRecord {
 }
 
 const normalizeDocument = (document: CoreliaDocumentRecord): DocumentRecord => ({
+  version: document.version,
+  currentVersion: document.currentVersion,
+  changeToken: document.changeToken,
+  versionCreatedBy: document.versionCreatedBy,
+  versionCreatedAt: document.versionCreatedAt,
   id: document.id,
   documentTypeId: document.typeCode,
   documentType: document.typeName,
@@ -93,20 +104,28 @@ export const documentsApi = {
   getById: async (id: string, type = defaultDocumentType) => normalizeDocument(
     await apiClient.get<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}`),
   ),
+  getVersions: (id: string, type = defaultDocumentType) => apiClient.get<{ items: DocumentVersion[] }>(
+    `${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}/versions`,
+  ),
+  getVersion: async (id: string, version: number, type = defaultDocumentType) => normalizeDocument(
+    await apiClient.get<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}/versions/${version}`),
+  ),
   create: async ({ documentTypeId, ...attributes }: CreateDocumentRequest) => normalizeDocument(
     await apiClient.post<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}`, { attributes }),
   ),
-  update: async (id: string, { documentTypeId, ...attributes }: UpdateDocumentRequest) => normalizeDocument(
-    await apiClient.patch<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}/${encodeURIComponent(id)}`, { attributes }),
-  ),
+  update: async (id: string, { documentTypeId, expectedVersion, changeToken, requestId, ...attributes }: UpdateDocumentRequest) => {
+    const path = `${apiRoot}/documents/${encodeURIComponent(documentTypeId)}/${encodeURIComponent(id)}`;
+    await apiClient.patch<CoreliaDocumentRecord>(path, { attributes, expectedVersion, changeToken, requestId });
+    return normalizeDocument(await apiClient.get<CoreliaDocumentRecord>(path));
+  },
   completeApproval: (id: string, payload: DocumentApprovalRequest) =>
     apiClient.post<DocumentRecord>(`${apiRoot}/tasks/${encodeURIComponent(id)}/action`, payload),
-  uploadAttachments: (documentId: string, attachments: AttachmentUpload[]) =>
-    apiClient.post<Attachment[]>(`${apiRoot}/documents/${defaultDocumentType}/${encodeURIComponent(documentId)}/attachments`, { attachments }),
+  uploadAttachments: (documentId: string, attachments: AttachmentUpload[], requestId: string = crypto.randomUUID()) =>
+    apiClient.post<Attachment[]>(`${apiRoot}/documents/${defaultDocumentType}/${encodeURIComponent(documentId)}/attachments`, { attachments, requestId }),
   replaceAttachment: (attachmentId: string, attachment: AttachmentUpload) =>
-    apiClient.put<Attachment>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`, { attachments: [attachment] }),
+    apiClient.put<Attachment>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`, { attachments: [attachment], requestId: crypto.randomUUID() }),
   deleteAttachment: (attachmentId: string) =>
-    apiClient.delete<void>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`),
+    apiClient.delete<void>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}?requestId=${crypto.randomUUID()}`),
   getAttachmentVersions: (attachmentId: string) =>
     apiClient.get<Attachment[]>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}/versions`),
   attachmentUrl,
