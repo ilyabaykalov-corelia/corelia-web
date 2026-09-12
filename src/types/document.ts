@@ -29,7 +29,20 @@ export interface Attachment {
   uploadedAt: string;
 }
 
+export interface DocumentVersion {
+  version: number;
+  createdBy: string;
+  createdAt: string;
+  closedAt?: string;
+  current: boolean;
+}
+
 export interface DocumentRecord {
+  version?: number;
+  currentVersion?: number;
+  changeToken?: string;
+  versionCreatedBy?: string;
+  versionCreatedAt?: string;
   id: string;
   documentTypeId: string;
   documentType: string;
@@ -87,7 +100,11 @@ export interface CreateDocumentRequest {
   snils: string;
 }
 
-export interface UpdateDocumentRequest extends CreateDocumentRequest {}
+export interface UpdateDocumentRequest extends CreateDocumentRequest {
+  expectedVersion?: number;
+  changeToken?: string;
+  requestId?: string;
+}
 
 export interface DocumentApprovalRequest {
   actionCode?: DocumentWorkflowActionCode;

@@ -32,7 +32,7 @@ import { LocalDocumentFilesList } from '../features/documents/components/Documen
 import { formatSnils, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
 import { createDocument, fetchDocumentTypes, uploadDocumentAttachments } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { CreateDocumentRequest, DocumentType } from '../types/document';
+import type { AttachmentUpload, CreateDocumentRequest, DocumentType } from '../types/document';
 import { fileToAttachmentUpload } from '../utils/file';
 import { formatDate, todayIsoDate } from '../utils/format';
 
@@ -54,7 +54,12 @@ export function DocumentCreatePage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { documentTypes, saving, error } = useAppSelector((state) => state.documents);
+  const { documentTypes, saving: storeSaving, error } = useAppSelector((state) => state.documents);
+  const [submitting, setSubmitting] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState<{
+    documentId: string; attachments: AttachmentUpload[]; requestId: string;
+  } | null>(null);
+  const saving = storeSaving || submitting;
   const [activeStep, setActiveStep] = useState(0);
   const [form, setForm] = useState<CreateDocumentRequest>(initialForm);
   const [files, setFiles] = useState<File[]>([]);
@@ -127,24 +132,46 @@ export function DocumentCreatePage() {
       return;
     }
 
+    if (saving) return;
+    setSubmitting(true);
+    setValidationError(null);
+    let upload = pendingUpload;
     try {
-      const created = await dispatch(createDocument({
-        documentTypeId: form.documentTypeId,
-        contractDate: form.contractDate,
-        contractNumber: form.contractNumber.trim(),
-        snils: form.snils.trim(),
-      })).unwrap();
-
-      if (files.length > 0) {
+      if (!upload) {
+        // Prepare files before creating a document; retain the exact batch for retries.
         const attachments = await Promise.all(files.map(fileToAttachmentUpload));
-        await dispatch(uploadDocumentAttachments({ documentId: created.id, attachments })).unwrap();
+        const created = await dispatch(createDocument({
+          documentTypeId: form.documentTypeId,
+          contractDate: form.contractDate,
+          contractNumber: form.contractNumber.trim(),
+          snils: form.snils.trim(),
+        })).unwrap();
+        upload = { documentId: created.id, attachments, requestId: crypto.randomUUID() };
       }
-
-      navigate(`/documents/${created.id}`);
+      if (upload.attachments.length > 0) {
+        await dispatch(uploadDocumentAttachments(upload)).unwrap();
+      }
+      navigate(`/documents/${upload.documentId}`);
     } catch (submitError) {
+      if (upload) setPendingUpload(upload);
       setValidationError(submitError instanceof Error ? submitError.message : String(submitError));
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  if (pendingUpload) return (
+    <Stack spacing={2}>
+      <Alert severity="warning">Документ уже создан. Не удалось завершить загрузку вложений. Повторная попытка загрузит файлы в этот же документ.</Alert>
+      {validationError && <Alert severity="error">{validationError}</Alert>}
+      <Stack direction="row" spacing={1}>
+        <Button variant="contained" disabled={saving} onClick={() => void handleSave()}>
+          {saving ? 'Загрузка…' : 'Повторить загрузку вложений'}
+        </Button>
+        <Button disabled={saving} onClick={() => navigate(`/documents/${pendingUpload.documentId}`)}>Открыть документ</Button>
+      </Stack>
+    </Stack>
+  );
 
   return (
     <Box sx={{ mx: { xs: 0, md: -0.5 }, mb: -2.5 }}>
