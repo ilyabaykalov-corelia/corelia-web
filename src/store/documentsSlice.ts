@@ -191,9 +191,9 @@ export const completeDocumentApproval = createAsyncThunk(
  */
 export const uploadDocumentAttachments = createAsyncThunk(
   'documents/uploadAttachments',
-  async ({ documentId, attachments }: { documentId: string; attachments: AttachmentUpload[] }, api) => {
+  async ({ documentId, attachments, requestId }: { documentId: string; attachments: AttachmentUpload[]; requestId?: string }, api) => {
     try {
-      await documentsApi.uploadAttachments(documentId, attachments);
+      await documentsApi.uploadAttachments(documentId, attachments, requestId);
       return await documentsApi.getById(documentId);
     } catch (error) {
       return api.rejectWithValue(errorMessage(error));
