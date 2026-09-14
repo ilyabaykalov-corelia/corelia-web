@@ -44,7 +44,7 @@ import { formatSnils, validateDocumentAttributes } from '../features/documents/u
 import { documentsApi } from '../api/documents';
 import { clearCurrentDocument, completeDocumentApproval, deleteDocumentAttachment, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, replaceDocumentAttachment, updateDocument, uploadDocumentAttachments } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { ApprovalStatus, Attachment, DocumentType, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
+import type { ApprovalStatus, Attachment, DocumentRecord, DocumentVersion, DocumentType, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
 import { fileToAttachmentUpload } from '../utils/file';
 import { formatDate, formatDateTime } from '../utils/format';
 
@@ -128,7 +128,13 @@ function StepIcon({ state }: { state: ProcessStepState }) {
 export function DocumentDetailPage() {
 	const { id } = useParams();
 	const dispatch = useAppDispatch();
-	const { currentItem: document, currentUser, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
+	const { currentItem: currentDocument, currentUser, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
+	const [ historicalDocument, setHistoricalDocument ] = useState<DocumentRecord | null>(null);
+	const [ documentVersions, setDocumentVersions ] = useState<DocumentVersion[]>([]);
+	const [ selectedVersion, setSelectedVersion ] = useState<number | null>(null);
+	const [ versionLoading, setVersionLoading ] = useState(false);
+	const document = historicalDocument ?? currentDocument;
+	const historical = selectedVersion !== null;
 	const [ editing, setEditing ] = useState(false);
 	const [ form, setForm ] = useState<UpdateDocumentRequest | null>(null);
 	const [ validationError, setValidationError ] = useState<string | null>(null);
@@ -156,6 +162,33 @@ export function DocumentDetailPage() {
 		if (documentTypes.length === 0) void dispatch(fetchDocumentTypes());
 	}, [ dispatch, documentTypes.length ]);
 
+	useEffect(() => {
+		setSelectedVersion(null); setHistoricalDocument(null); setDocumentVersions([]);
+		setEditing(false); setPreviewFile(null); setVersionsAttachment(null);
+	}, [id]);
+
+	useEffect(() => {
+		if (!id || currentDocument?.id !== id) return;
+		let active = true;
+		void documentsApi.getVersions(id).then(result => {
+			if (active) setDocumentVersions(result.items);
+		}).catch(error => { if (active) setActionError(String(error)); });
+		return () => { active = false; };
+	}, [id, currentDocument?.id, currentDocument?.version, currentDocument?.changeToken]);
+
+	useEffect(() => {
+		if (!id || selectedVersion === null) { setHistoricalDocument(null); setVersionLoading(false); return; }
+		let active = true;
+		setVersionLoading(true); setPreviewFile(null); setVersionsAttachment(null); setActionError(null);
+		void documentsApi.getVersion(id, selectedVersion).then(result => {
+			if (active) setHistoricalDocument(result);
+		}).catch(error => {
+			if (active) { setActionError(String(error)); setSelectedVersion(null); }
+		}).finally(() => { if (active) setVersionLoading(false); });
+		return () => { active = false; };
+	}, [id, selectedVersion]);
+
+	if (selectedVersion !== null && historicalDocument?.version !== selectedVersion) return <Stack sx={{ py: 12, alignItems: 'center' }}><CircularProgress/><Typography>Загрузка версии {selectedVersion}…</Typography></Stack>;
 	if (loading && !document) return <Stack sx={ { py: 12, alignItems: 'center' } }><CircularProgress/></Stack>;
 	if (error && !document) return <Alert severity="error">{ error }</Alert>;
 	if (!document) return null;
@@ -163,10 +196,10 @@ export function DocumentDetailPage() {
 	const processSteps = processCopy[document.approvalStatus];
 	const actionMenuOpen = Boolean(actionAnchorEl);
 	const availableActions = document.workflow?.availableActions ?? [];
-	const documentOperatorCanEdit = document.approvalStatus === 'IN_WORK'
+	const documentOperatorCanEdit = !historical && !versionLoading && document.approvalStatus === 'IN_WORK'
 		&& document.workflow?.executor?.login === currentUser?.login
 		&& document.workflow?.executor?.role === 'document_operator';
-	const decisionDisabled = editing || saving || availableActions.length === 0;
+	const decisionDisabled = historical || versionLoading || editing || saving || availableActions.length === 0;
 	const availableDocumentTypes = (() => {
 		const baseTypes = documentTypes.length > 0 ? documentTypes : [ fallbackDocumentType ];
 		if (baseTypes.some((item) => item.id === document.documentTypeId)) return baseTypes;
@@ -175,6 +208,9 @@ export function DocumentDetailPage() {
 
 	const startEdit = () => {
 		setForm({
+			expectedVersion: document.version,
+			changeToken: document.changeToken,
+			requestId: crypto.randomUUID(),
 			documentTypeId: document.documentTypeId,
 			contractDate: document.contractDate,
 			contractNumber: document.contractNumber,
@@ -215,6 +251,9 @@ export function DocumentDetailPage() {
 			const updated = await dispatch(updateDocument({
 				id: document.id,
 				payload: {
+					expectedVersion: form.expectedVersion,
+					changeToken: form.changeToken,
+					requestId: form.requestId,
 					documentTypeId: form.documentTypeId,
 					contractDate: form.contractDate,
 					contractNumber: form.contractNumber.trim(),
@@ -360,6 +399,8 @@ export function DocumentDetailPage() {
 
 	return (
 		<Stack spacing={ 2 }>
+			{historical && <Alert severity="info">Просмотр версии {selectedVersion}. Изменения недоступны. Статус и маршрут показывают текущее состояние общего процесса.</Alert>}
+			{versionLoading && <Alert severity="info">Загрузка версии…</Alert>}
 			<Breadcrumbs separator="›" sx={ { fontSize: 12.5 } }>
 				<Link component={ RouterLink } to="/" underline="hover" color="secondary.main">Документы</Link>
 				<Typography color="text.primary" sx={ { fontSize: 12.5 } }>{ document.documentType } { document.contractNumber }</Typography>
@@ -369,6 +410,14 @@ export function DocumentDetailPage() {
 				<Stack direction={ { xs: 'column', sm: 'row' } } spacing={ 1.5 } sx={ { alignItems: { xs: 'flex-start', sm: 'center' } } }>
 					<Typography variant="h4">{ document.documentType } { document.contractNumber }</Typography>
 					<DocumentStatusChip status={ document.documentStatus }/>
+					<TextField select size="small" label="Версия документа" value={ selectedVersion ?? 'current' }
+						disabled={ editing || saving || versionLoading } sx={{ minWidth: 220 }}
+						onChange={event => { setHistoricalDocument(null); setSelectedVersion(event.target.value === 'current' ? null : Number(event.target.value)); if (event.target.value === 'current' && id) void dispatch(fetchDocumentById(id)); }}>
+						<MenuItem value="current">Версия {currentDocument?.version ?? 1} · текущая</MenuItem>
+						{documentVersions.filter(v => !v.current).map(v => <MenuItem key={v.version} value={v.version}>
+							Версия {v.version} · {v.createdBy} · {new Date(v.createdAt + (/[Z+]/.test(v.createdAt) ? '' : 'Z')).toLocaleString('ru-RU')}
+						</MenuItem>)}
+					</TextField>
 				</Stack>
 				<Stack direction="row" spacing={ 1 } useFlexGap sx={ { flexWrap: 'wrap' } }>
 					{ editing ? (
@@ -386,7 +435,7 @@ export function DocumentDetailPage() {
 						variant="outlined"
 						color="inherit"
 						endIcon={ <ExpandMoreIcon/> }
-						disabled={ saving || editing }
+						disabled={ historical || versionLoading || saving || editing }
 						aria-controls={ actionMenuOpen ? 'document-actions-menu' : undefined }
 						aria-haspopup="menu"
 						aria-expanded={ actionMenuOpen ? 'true' : undefined }
