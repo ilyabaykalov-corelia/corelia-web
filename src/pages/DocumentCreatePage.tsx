@@ -23,6 +23,7 @@ import {
   PriorityHigh as PriorityHighIcon,
   SaveOutlined as SaveOutlinedIcon,
 } from '@mui/icons-material';
+import { KidOpsFields } from '../features/documents/components/KidOpsFields';
 import { FormField } from '../components/common/FormField';
 import { SectionPanel } from '../components/common/SectionPanel';
 import { SummaryRow } from '../components/common/SummaryRow';
@@ -53,6 +54,7 @@ const fieldProps = { fullWidth: true, size: 'small' as const };
 export function DocumentCreatePage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const creationRequestId = useRef(crypto.randomUUID());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { documentTypes, saving: storeSaving, error } = useAppSelector((state) => state.documents);
   const [submitting, setSubmitting] = useState(false);
@@ -68,6 +70,7 @@ export function DocumentCreatePage() {
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const availableDocumentTypes = documentTypes.length > 0 ? documentTypes : [fallbackDocumentType];
+  const isKid = form.documentTypeId === 'KID_OPS';
   const selectedDocumentType = availableDocumentTypes.find((item) => item.id === form.documentTypeId) ?? fallbackDocumentType;
 
   useEffect(() => {
@@ -116,7 +119,7 @@ export function DocumentCreatePage() {
   };
 
   const moveNext = () => {
-    const stepError = activeStep === 0 ? validateDocumentAttributes(form) : null;
+    const stepError = activeStep === 0 ? validateDocumentAttributes(form) : isKid && files.length === 0 ? 'Для создания КИД ОПС добавьте вложение' : null;
     if (stepError) {
       setValidationError(stepError);
       return;
@@ -126,7 +129,7 @@ export function DocumentCreatePage() {
   };
 
   const handleSave = async () => {
-    const formError = validateDocumentAttributes(form);
+    const formError = validateDocumentAttributes(form) ?? (isKid && files.length === 0 ? 'Для создания КИД ОПС добавьте вложение' : null);
     if (formError) {
       setValidationError(formError);
       return;
@@ -141,12 +144,15 @@ export function DocumentCreatePage() {
         // Prepare files before creating a document; retain the exact batch for retries.
         const attachments = await Promise.all(files.map(fileToAttachmentUpload));
         const created = await dispatch(createDocument({
+          ...form,
+          requestId: creationRequestId.current,
+          initialAttachment: isKid ? attachments[0] : undefined,
           documentTypeId: form.documentTypeId,
           contractDate: form.contractDate,
           contractNumber: form.contractNumber.trim(),
           snils: form.snils.trim(),
         })).unwrap();
-        upload = { documentId: created.id, attachments, requestId: crypto.randomUUID() };
+        upload = { documentId: created.id, attachments: isKid ? attachments.slice(1) : attachments, requestId: crypto.randomUUID() };
       }
       if (upload.attachments.length > 0) {
         await dispatch(uploadDocumentAttachments(upload)).unwrap();
@@ -234,17 +240,18 @@ export function DocumentCreatePage() {
                 <TextField {...fieldProps} type="date" value={form.contractDate} onChange={(event) => updateField('contractDate', event.target.value)} />
               </FormField>
               <FormField label="Номер договора" required>
-                <TextField {...fieldProps} value={form.contractNumber} onChange={(event) => updateField('contractNumber', event.target.value)} placeholder="Введите номер договора" slotProps={{ htmlInput: { maxLength: 64 } }} />
+                <TextField {...fieldProps} value={form.contractNumber} onChange={(event) => updateField('contractNumber', event.target.value)} placeholder={isKid ? "ОПС-ХХХ-ХХХХ-ХХХХХХХ" : "Введите номер договора"} slotProps={{ htmlInput: { maxLength: 64 } }} />
               </FormField>
               <FormField label="СНИЛС" required>
-                <TextField {...fieldProps} value={form.snils} onChange={(event) => updateSnils(event.target.value)} placeholder="Введите СНИЛС" slotProps={{ htmlInput: { maxLength: 14, inputMode: 'numeric' } }} />
+                <TextField {...fieldProps} value={form.snils} onChange={(event) => updateSnils(event.target.value)} helperText={isKid ? 'Цифровой, в формате: „ХХХ-ХХХ-ХХХ ХХ“' : undefined} placeholder="Введите СНИЛС" slotProps={{ htmlInput: { maxLength: 14, inputMode: 'numeric' } }} />
               </FormField>
+              {isKid && <KidOpsFields value={form} onChange={updateField} disabled={saving} />}
             </Box>
           </SectionPanel>
         )}
 
         {activeStep === 1 && (
-          <SectionPanel title="Вложения" count={files.length}>
+          <SectionPanel title={isKid ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: files.length > 0 ? 'minmax(0, 1.15fr) minmax(360px, .85fr)' : '1fr' }, gap: 2 }}>
               <Box>
                 <Box
@@ -291,8 +298,14 @@ export function DocumentCreatePage() {
               <SummaryRow label="Дата договора" value={formatDate(form.contractDate)} />
               <SummaryRow label="Номер договора" value={form.contractNumber} />
               <SummaryRow label="СНИЛС" value={form.snils} />
+              {isKid && <>
+                <SummaryRow label="Год подписания" value={String(form.signingYear ?? '')} />
+                <SummaryRow label="Фамилия" value={form.lastName ?? ''} />
+                <SummaryRow label="Имя" value={form.firstName ?? ''} />
+                <SummaryRow label="Отчество" value={form.middleName || '—'} />
+              </>}
             </SectionPanel>
-            <SectionPanel title="Вложения" count={files.length}>
+            <SectionPanel title={isKid ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
               {files.length > 0 ? <LocalDocumentFilesList files={files} onPreview={setPreviewFile} /> : <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center', fontSize: 12.5 }}>Вложения не добавлены</Typography>}
             </SectionPanel>
           </Box>

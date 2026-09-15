@@ -33,6 +33,7 @@ type SortDirection = 'asc' | 'desc';
 
 const statusOptions: Array<{ value: ApprovalStatus | ''; label: string }> = [
   { value: '', label: 'Все статусы' },
+  { value: 'STORED', label: 'На хранении' },
   { value: 'CREATED', label: 'Создан' },
   { value: 'IN_WORK', label: 'В работе' },
   { value: 'ON_APPROVAL', label: 'На согласовании' },
@@ -167,6 +168,10 @@ export function DocumentsListPage() {
         document.contractNumber,
         document.contractDate,
         document.snils,
+        document.lastName ?? '',
+        document.firstName ?? '',
+        document.middleName ?? '',
+        String(document.signingYear ?? ''),
         document.documentStatus,
         document.id,
       ].some((field) => field.toLocaleLowerCase('ru-RU').includes(normalizedQuery));
