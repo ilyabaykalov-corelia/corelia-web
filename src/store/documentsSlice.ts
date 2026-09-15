@@ -140,7 +140,7 @@ export const fetchDocumentTypes = createAsyncThunk('documents/fetchDocumentTypes
 });
 
 /**
- * Создает карточку документа без вложений.
+ * Создает карточку документа; для КИД ОПС передаёт обязательное первое вложение.
  *
  * @param payload - Валидированные атрибуты документа.
  */

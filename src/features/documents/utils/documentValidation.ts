@@ -40,5 +40,16 @@ export function validateDocumentAttributes(payload: CreateDocumentRequest | Upda
   if (!payload.snils.trim()) return 'Заполните СНИЛС';
   if (payload.contractNumber.trim().length > 64) return 'Номер договора не должен превышать 64 символа';
   if (!snilsPattern.test(payload.snils.trim())) return 'СНИЛС должен быть в формате 000-000-000 00';
+  if (payload.documentTypeId === 'KID_OPS') {
+    if (!/^ОПС-[0-9]{3}-[0-9]{4}-[0-9]{7}$/.test(payload.contractNumber.trim())) return 'Номер договора должен иметь формат ОПС-ХХХ-ХХХХ-ХХХХХХХ';
+    if (!/^[1-9][0-9]{3}$/.test(String(payload.signingYear ?? ''))) return 'Год подписания должен состоять из четырёх цифр';
+    if (!payload.lastName?.trim()) return 'Заполните фамилию';
+    if (!payload.firstName?.trim()) return 'Заполните имя';
+    if (Array.from(payload.lastName.trim()).length > 40) return 'Фамилия не должна превышать 40 символов';
+    if (Array.from(payload.firstName.trim()).length > 255) return 'Имя не должно превышать 255 символов';
+    if (Array.from(payload.middleName?.trim() ?? '').length > 256) return 'Отчество не должно превышать 256 символов';
+    const date = new Date(payload.contractDate);
+    if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== payload.contractDate) return 'Укажите корректную дату договора';
+  }
   return null;
 }

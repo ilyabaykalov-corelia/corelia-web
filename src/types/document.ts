@@ -1,7 +1,7 @@
-export type ApprovalStatus = 'CREATED' | 'IN_WORK' | 'ON_APPROVAL' | 'NEEDS_REVISION' | 'APPROVED' | 'REJECTED';
+export type ApprovalStatus = 'CREATED' | 'IN_WORK' | 'ON_APPROVAL' | 'NEEDS_REVISION' | 'APPROVED' | 'REJECTED' | 'STORED';
 export type ApprovalDecision = Exclude<ApprovalStatus, 'CREATED'>;
 export type DocumentWorkflowActionCode = string;
-export type DocumentStatus = 'Создан' | 'В работе' | 'На согласовании' | 'Отправлено на доработку' | 'Согласован' | 'Отклонен';
+export type DocumentStatus = 'Создан' | 'В работе' | 'На согласовании' | 'Отправлено на доработку' | 'Согласован' | 'Отклонен' | 'На хранении';
 export type DocumentActionTone = 'success' | 'warning' | 'error';
 
 export interface DocumentWorkflowAction {
@@ -49,6 +49,10 @@ export interface DocumentRecord {
   contractDate: string;
   contractNumber: string;
   snils: string;
+  signingYear?: string | number;
+  lastName?: string;
+  firstName?: string;
+  middleName?: string;
   status: ApprovalStatus;
   documentStatus: DocumentStatus;
   createdBy?: string;
@@ -94,10 +98,16 @@ export interface DocumentTypesResponse {
 }
 
 export interface CreateDocumentRequest {
+  initialAttachment?: AttachmentUpload;
+  requestId?: string;
   documentTypeId: string;
   contractDate: string;
   contractNumber: string;
   snils: string;
+  signingYear?: string | number;
+  lastName?: string;
+  firstName?: string;
+  middleName?: string;
 }
 
 export interface UpdateDocumentRequest extends CreateDocumentRequest {
