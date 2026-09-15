@@ -35,6 +35,7 @@ import {
 	SaveOutlined as SaveOutlinedIcon,
 	WarningAmberOutlined as WarningAmberOutlinedIcon,
 } from '@mui/icons-material';
+import { KidOpsFields } from '../features/documents/components/KidOpsFields';
 import { FormField } from '../components/common/FormField';
 import { SectionPanel } from '../components/common/SectionPanel';
 import { FilePreviewDialog } from '../components/FilePreviewDialog';
@@ -64,7 +65,7 @@ function AttributeRow({ label, children }: PropsWithChildren<{ label: string }>)
 	);
 }
 
-const processCopy: Record<ApprovalStatus, ProcessStep[]> = {
+const processCopy: Record<Exclude<ApprovalStatus, 'STORED'>, ProcessStep[]> = {
 	CREATED: [
 		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
 		{ title: 'Оператор', detail: 'Ожидает взятия в работу', state: 'active' },
@@ -193,7 +194,12 @@ export function DocumentDetailPage() {
 	if (error && !document) return <Alert severity="error">{ error }</Alert>;
 	if (!document) return null;
 
-	const processSteps = processCopy[document.status];
+	const isKid = document.documentTypeId === 'KID_OPS';
+	const processSteps: ProcessStep[] = isKid ? [
+		{ title: 'Карточка создана', detail: 'КИД ОПС зарегистрирован с вложением', state: 'done' },
+		{ title: 'Оператор', detail: document.status === 'CREATED' ? 'Ожидает взятия в работу' : 'Проверка и редактирование документа', state: document.status === 'STORED' ? 'done' : 'active' },
+		{ title: 'Хранение', detail: document.status === 'STORED' ? 'Документ отправлен на хранение' : 'Ожидает отправки на хранение', state: document.status === 'STORED' ? 'done' : 'wait' },
+	] : processCopy[document.status as Exclude<ApprovalStatus, 'STORED'>];
 	const actionMenuOpen = Boolean(actionAnchorEl);
 	const availableActions = document.workflow?.availableActions ?? [];
 	const documentOperatorCanEdit = !historical && !versionLoading && document.status === 'IN_WORK'
@@ -215,6 +221,7 @@ export function DocumentDetailPage() {
 			contractDate: document.contractDate,
 			contractNumber: document.contractNumber,
 			snils: document.snils,
+            signingYear: document.signingYear, lastName: document.lastName, firstName: document.firstName, middleName: document.middleName,
 		});
 		setValidationError(null);
 		setActionError(null);
@@ -258,6 +265,7 @@ export function DocumentDetailPage() {
 					contractDate: form.contractDate,
 					contractNumber: form.contractNumber.trim(),
 					snils: form.snils.trim(),
+                    signingYear: form.signingYear, lastName: form.lastName, firstName: form.firstName, middleName: form.middleName,
 				},
 			})).unwrap();
 
@@ -266,6 +274,7 @@ export function DocumentDetailPage() {
 				contractDate: updated.contractDate,
 				contractNumber: updated.contractNumber,
 				snils: updated.snils,
+                signingYear: updated.signingYear, lastName: updated.lastName, firstName: updated.firstName, middleName: updated.middleName,
 			});
 			setValidationError(null);
 			setActionError(null);
@@ -492,7 +501,7 @@ export function DocumentDetailPage() {
 								{ validationError && <Alert severity="error">{ validationError }</Alert> }
 								<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 } }>
 									<FormField label="Вид документа" required>
-										<TextField { ...fieldProps } select value={ form.documentTypeId } onChange={ (event) => updateField('documentTypeId', event.target.value) } disabled={ saving }>
+										<TextField { ...fieldProps } select value={ form.documentTypeId } disabled>
 											{ availableDocumentTypes.map((item) => <MenuItem key={ item.id } value={ item.id }>{ item.name }</MenuItem>) }
 										</TextField>
 									</FormField>
@@ -502,12 +511,13 @@ export function DocumentDetailPage() {
 									</FormField>
 									<FormField label="Номер договора" required>
 										<TextField { ...fieldProps } value={ form.contractNumber } onChange={ (event) => updateField('contractNumber', event.target.value) }
-										           placeholder="Введите номер договора" disabled={ saving } slotProps={ { htmlInput: { maxLength: 64 } } }/>
+										           placeholder={isKid ? "ОПС-ХХХ-ХХХХ-ХХХХХХХ" : "Введите номер договора"} disabled={ saving } slotProps={ { htmlInput: { maxLength: 64 } } }/>
 									</FormField>
 									<FormField label="СНИЛС" required>
-										<TextField { ...fieldProps } value={ form.snils } onChange={ (event) => updateSnils(event.target.value) } placeholder="Введите СНИЛС" disabled={ saving }
+										<TextField { ...fieldProps } value={ form.snils } onChange={ (event) => updateSnils(event.target.value) } helperText={isKid ? 'Цифровой, в формате: „ХХХ-ХХХ-ХХХ ХХ“' : undefined} placeholder="Введите СНИЛС" disabled={ saving }
 										           slotProps={ { htmlInput: { maxLength: 14, inputMode: 'numeric' } } }/>
 									</FormField>
+									{isKid && <KidOpsFields value={form} onChange={updateField} disabled={saving} />}
 								</Box>
 							</Stack>
 						) : (
@@ -516,6 +526,12 @@ export function DocumentDetailPage() {
 								<AttributeRow label="Дата договора">{ formatDate(document.contractDate) }</AttributeRow>
 								<AttributeRow label="Номер договора">{ document.contractNumber }</AttributeRow>
 								<AttributeRow label="СНИЛС">{ document.snils }</AttributeRow>
+                                {isKid && <>
+                                  <AttributeRow label="Год подписания">{document.signingYear}</AttributeRow>
+                                  <AttributeRow label="Фамилия">{document.lastName}</AttributeRow>
+                                  <AttributeRow label="Имя">{document.firstName}</AttributeRow>
+                                  <AttributeRow label="Отчество">{document.middleName}</AttributeRow>
+                                </>}
 								<AttributeRow label="Дата создания">{ document.createdAt ? formatDateTime(document.createdAt) : undefined }</AttributeRow>
 								<AttributeRow label="Кто создал">{ document.createdBy }</AttributeRow>
 							</>
