@@ -80,10 +80,10 @@ export function HomePage() {
   }, [dispatch, filters, items.length]);
 
   const counters = useMemo(() => ({
-    created: items.filter((document) => document.approvalStatus === 'CREATED').length,
-    active: items.filter((document) => ['IN_WORK', 'ON_APPROVAL', 'NEEDS_REVISION'].includes(document.approvalStatus)).length,
-    approved: items.filter((document) => document.approvalStatus === 'APPROVED').length,
-    rejected: items.filter((document) => document.approvalStatus === 'REJECTED').length,
+    created: items.filter((document) => document.status === 'CREATED').length,
+    active: items.filter((document) => ['IN_WORK', 'ON_APPROVAL', 'NEEDS_REVISION'].includes(document.status)).length,
+    approved: items.filter((document) => document.status === 'APPROVED').length,
+    rejected: items.filter((document) => document.status === 'REJECTED').length,
   }), [items]);
 
   return (
