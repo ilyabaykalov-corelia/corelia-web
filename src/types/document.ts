@@ -49,7 +49,7 @@ export interface DocumentRecord {
   contractDate: string;
   contractNumber: string;
   snils: string;
-  approvalStatus: ApprovalStatus;
+  status: ApprovalStatus;
   documentStatus: DocumentStatus;
   createdBy?: string;
   createdAt?: string;

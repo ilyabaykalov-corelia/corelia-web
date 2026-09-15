@@ -145,10 +145,10 @@ export function DocumentsListPage() {
   const availableDocumentTypes = documentTypes.length > 0 ? documentTypes : [fallbackDocumentType];
 
   const counters = useMemo(() => ({
-    created: items.filter((document) => document.approvalStatus === 'CREATED').length,
-    active: items.filter((document) => ['IN_WORK', 'ON_APPROVAL', 'NEEDS_REVISION'].includes(document.approvalStatus)).length,
-    approved: items.filter((document) => document.approvalStatus === 'APPROVED').length,
-    rejected: items.filter((document) => document.approvalStatus === 'REJECTED').length,
+    created: items.filter((document) => document.status === 'CREATED').length,
+    active: items.filter((document) => ['IN_WORK', 'ON_APPROVAL', 'NEEDS_REVISION'].includes(document.status)).length,
+    approved: items.filter((document) => document.status === 'APPROVED').length,
+    rejected: items.filter((document) => document.status === 'REJECTED').length,
   }), [items]);
 
   const visibleItems = useMemo(() => {
@@ -157,7 +157,7 @@ export function DocumentsListPage() {
     return items.filter((document) => {
       const contractDate = comparableDate(document.contractDate);
       if (documentTypeId && document.documentTypeId !== documentTypeId) return false;
-      if (status && document.approvalStatus !== status) return false;
+      if (status && document.status !== status) return false;
       if (dateFrom && contractDate < comparableDate(dateFrom)) return false;
       if (dateTo && contractDate > comparableDate(dateTo)) return false;
       if (!normalizedQuery) return true;
