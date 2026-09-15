@@ -16,7 +16,10 @@ import type {
 } from '../types/document';
 
 const apiRoot = '/api/core/v1';
-const defaultDocumentType = 'PDS_CONTRACT';
+const documentAttributes = (type: string, values: Omit<CreateDocumentRequest, 'documentTypeId'>) => ({
+  contractNumber: values.contractNumber.trim(), contractDate: values.contractDate, snils: values.snils.trim(),
+  ...(type === 'KID_OPS' ? { signingYear: Number(values.signingYear), lastName: values.lastName?.trim(), firstName: values.firstName?.trim(), middleName: values.middleName?.trim() ?? '' } : {}),
+});
 
 interface DocumentTypeCatalogResponse {
   items: Array<{ code?: string; id?: string; name: string }>;
@@ -32,7 +35,7 @@ interface CoreliaDocumentRecord {
   id: string;
   typeCode: string;
   typeName: string;
-  attributes?: Partial<Pick<DocumentRecord, 'contractDate' | 'contractNumber' | 'snils'>>;
+  attributes?: Partial<Pick<DocumentRecord, 'contractDate' | 'contractNumber' | 'snils' | 'signingYear' | 'lastName' | 'firstName' | 'middleName'>>;
   status: DocumentRecord['status'];
   statusLabel: DocumentRecord['documentStatus'];
   createdBy?: string;
@@ -54,6 +57,10 @@ const normalizeDocument = (document: CoreliaDocumentRecord): DocumentRecord => (
   contractDate: document.attributes?.contractDate ?? '',
   contractNumber: document.attributes?.contractNumber ?? '',
   snils: document.attributes?.snils ?? '',
+  signingYear: document.attributes?.signingYear,
+  lastName: document.attributes?.lastName,
+  firstName: document.attributes?.firstName,
+  middleName: document.attributes?.middleName,
   status: document.status,
   documentStatus: document.statusLabel,
   createdBy: document.createdBy,
@@ -96,32 +103,36 @@ export const documentsApi = {
   },
   search: async (filters: DocumentSearchRequest): Promise<DocumentSearchResponse> => {
     const response = await apiClient.post<{ items: CoreliaDocumentRecord[]; total: number }>(
-      `${apiRoot}/documents/${encodeURIComponent(filters.documentTypeId ?? defaultDocumentType)}/search`,
+      filters.documentTypeId ? `${apiRoot}/documents/${encodeURIComponent(filters.documentTypeId)}/search` : `${apiRoot}/documents/search`,
       filters,
     );
     return { ...response, items: response.items.map(normalizeDocument) };
   },
-  getById: async (id: string, type = defaultDocumentType) => normalizeDocument(
-    await apiClient.get<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}`),
+  getById: async (id: string, type?: string) => normalizeDocument(
+    await apiClient.get<CoreliaDocumentRecord>(type ? `${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}` : `${apiRoot}/documents/by-id/${encodeURIComponent(id)}`),
   ),
-  getVersions: (id: string, type = defaultDocumentType) => apiClient.get<{ items: DocumentVersion[] }>(
-    `${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}/versions`,
-  ),
-  getVersion: async (id: string, version: number, type = defaultDocumentType) => normalizeDocument(
-    await apiClient.get<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}/versions/${version}`),
-  ),
-  create: async ({ documentTypeId, ...attributes }: CreateDocumentRequest) => normalizeDocument(
-    await apiClient.post<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}`, { attributes }),
+  getVersions: async (id: string, type?: string) => {
+    const code = type ?? (await documentsApi.getById(id)).documentTypeId;
+    return apiClient.get<{ items: DocumentVersion[] }>(`${apiRoot}/documents/${encodeURIComponent(code)}/${encodeURIComponent(id)}/versions`);
+  },
+  getVersion: async (id: string, version: number, type?: string): Promise<DocumentRecord> => {
+    const code = type ?? (await documentsApi.getById(id)).documentTypeId;
+    return normalizeDocument(await apiClient.get<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(code)}/${encodeURIComponent(id)}/versions/${version}`));
+  },
+  create: async ({ documentTypeId, initialAttachment, requestId, ...values }: CreateDocumentRequest) => normalizeDocument(
+    await apiClient.post<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}`, { attributes: documentAttributes(documentTypeId, values), initialAttachment, requestId }),
   ),
   update: async (id: string, { documentTypeId, expectedVersion, changeToken, requestId, ...attributes }: UpdateDocumentRequest) => {
     const path = `${apiRoot}/documents/${encodeURIComponent(documentTypeId)}/${encodeURIComponent(id)}`;
-    await apiClient.patch<CoreliaDocumentRecord>(path, { attributes, expectedVersion, changeToken, requestId });
+    await apiClient.patch<CoreliaDocumentRecord>(path, { attributes: documentAttributes(documentTypeId, attributes), expectedVersion, changeToken, requestId });
     return normalizeDocument(await apiClient.get<CoreliaDocumentRecord>(path));
   },
   completeApproval: (id: string, payload: DocumentApprovalRequest) =>
     apiClient.post<DocumentRecord>(`${apiRoot}/tasks/${encodeURIComponent(id)}/action`, payload),
-  uploadAttachments: (documentId: string, attachments: AttachmentUpload[], requestId: string = crypto.randomUUID()) =>
-    apiClient.post<Attachment[]>(`${apiRoot}/documents/${defaultDocumentType}/${encodeURIComponent(documentId)}/attachments`, { attachments, requestId }),
+  uploadAttachments: async (documentId: string, attachments: AttachmentUpload[], requestId: string = crypto.randomUUID()): Promise<Attachment[]> => {
+    const type = (await documentsApi.getById(documentId)).documentTypeId;
+    return apiClient.post<Attachment[]>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments`, { attachments, requestId });
+  },
   replaceAttachment: (attachmentId: string, attachment: AttachmentUpload) =>
     apiClient.put<Attachment>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`, { attachments: [attachment], requestId: crypto.randomUUID() }),
   deleteAttachment: (attachmentId: string) =>
