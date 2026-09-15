@@ -193,10 +193,10 @@ export function DocumentDetailPage() {
 	if (error && !document) return <Alert severity="error">{ error }</Alert>;
 	if (!document) return null;
 
-	const processSteps = processCopy[document.approvalStatus];
+	const processSteps = processCopy[document.status];
 	const actionMenuOpen = Boolean(actionAnchorEl);
 	const availableActions = document.workflow?.availableActions ?? [];
-	const documentOperatorCanEdit = !historical && !versionLoading && document.approvalStatus === 'IN_WORK'
+	const documentOperatorCanEdit = !historical && !versionLoading && document.status === 'IN_WORK'
 		&& document.workflow?.executor?.login === currentUser?.login
 		&& document.workflow?.executor?.role === 'document_operator';
 	const decisionDisabled = historical || versionLoading || editing || saving || availableActions.length === 0;

@@ -33,7 +33,7 @@ interface CoreliaDocumentRecord {
   typeCode: string;
   typeName: string;
   attributes?: Partial<Pick<DocumentRecord, 'contractDate' | 'contractNumber' | 'snils'>>;
-  status: DocumentRecord['approvalStatus'];
+  status: DocumentRecord['status'];
   statusLabel: DocumentRecord['documentStatus'];
   createdBy?: string;
   createdAt?: string;
@@ -54,7 +54,7 @@ const normalizeDocument = (document: CoreliaDocumentRecord): DocumentRecord => (
   contractDate: document.attributes?.contractDate ?? '',
   contractNumber: document.attributes?.contractNumber ?? '',
   snils: document.attributes?.snils ?? '',
-  approvalStatus: document.status,
+  status: document.status,
   documentStatus: document.statusLabel,
   createdBy: document.createdBy,
   createdAt: document.createdAt,
