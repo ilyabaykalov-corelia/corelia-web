@@ -1,7 +1,15 @@
-export type ApprovalStatus = 'CREATED' | 'IN_WORK' | 'ON_APPROVAL' | 'NEEDS_REVISION' | 'APPROVED' | 'REJECTED' | 'STORED';
-export type ApprovalDecision = Exclude<ApprovalStatus, 'CREATED'>;
+export type ApprovalStatus = string;
+export type ApprovalDecision = string;
 export type DocumentWorkflowActionCode = string;
-export type DocumentStatus = 'Создан' | 'В работе' | 'На согласовании' | 'Отправлено на доработку' | 'Согласован' | 'Отклонен' | 'На хранении';
+export type DocumentStatus = string;
+export type AttributeValue = string | number | boolean | null;
+export type DocumentAttributes = Record<string, AttributeValue>;
+export interface AttributeDefinition {
+  type: 'string' | 'integer' | 'number' | 'boolean';
+  title?: string; description?: string; format?: 'date';
+  minLength?: number; maxLength?: number; pattern?: string;
+  minimum?: number; maximum?: number; enum?: AttributeValue[];
+}
 export type DocumentActionTone = 'success' | 'warning' | 'error';
 
 export interface DocumentWorkflowAction {
@@ -15,6 +23,11 @@ export interface DocumentWorkflowAction {
 export interface DocumentType {
   id: string;
   name: string;
+  schema: { type: 'object'; properties: Record<string, AttributeDefinition>; required?: string[] };
+  ui: { fields: string[]; columns: string[]; searchFields: string[]; sortFields: string[]; dateField?: string };
+  statuses: Record<string, string>;
+  initialAttachmentRequired: boolean;
+  attachments: { enabled: boolean; initialRequired: boolean; maxCount: number };
 }
 
 export interface Attachment {
@@ -46,18 +59,13 @@ export interface DocumentRecord {
   id: string;
   documentTypeId: string;
   documentType: string;
-  contractDate: string;
-  contractNumber: string;
-  snils: string;
-  signingYear?: string | number;
-  lastName?: string;
-  firstName?: string;
-  middleName?: string;
+  attributes: DocumentAttributes;
   status: ApprovalStatus;
   documentStatus: DocumentStatus;
   createdBy?: string;
   createdAt?: string;
   processInstanceId?: string;
+  workflowCompleted?: boolean;
   workflow?: DocumentWorkflow;
   attachments: Attachment[];
 }
@@ -101,13 +109,7 @@ export interface CreateDocumentRequest {
   initialAttachment?: AttachmentUpload;
   requestId?: string;
   documentTypeId: string;
-  contractDate: string;
-  contractNumber: string;
-  snils: string;
-  signingYear?: string | number;
-  lastName?: string;
-  firstName?: string;
-  middleName?: string;
+  attributes: DocumentAttributes;
 }
 
 export interface UpdateDocumentRequest extends CreateDocumentRequest {

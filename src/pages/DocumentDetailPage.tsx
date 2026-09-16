@@ -35,26 +35,22 @@ import {
 	SaveOutlined as SaveOutlinedIcon,
 	WarningAmberOutlined as WarningAmberOutlinedIcon,
 } from '@mui/icons-material';
-import { KidOpsFields } from '../features/documents/components/KidOpsFields';
-import { FormField } from '../components/common/FormField';
+import { DocumentFields } from '../features/documents/components/DocumentFields';
 import { SectionPanel } from '../components/common/SectionPanel';
 import { FilePreviewDialog } from '../components/FilePreviewDialog';
 import { DocumentStatusChip } from '../components/DocumentStatusChip';
 import { AttachmentDocumentFilesList } from '../features/documents/components/DocumentFilesList';
-import { formatSnils, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
+import { displayAttribute, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
 import { documentsApi } from '../api/documents';
 import { clearCurrentDocument, completeDocumentApproval, deleteDocumentAttachment, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, replaceDocumentAttachment, updateDocument, uploadDocumentAttachments } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { ApprovalStatus, Attachment, DocumentRecord, DocumentVersion, DocumentType, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
+import type { AttributeValue, Attachment, DocumentRecord, DocumentVersion, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
 import { fileToAttachmentUpload } from '../utils/file';
-import { formatDate, formatDateTime } from '../utils/format';
+import { formatDateTime } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
-type AttributeField = keyof UpdateDocumentRequest;
-type ProcessStep = { title: string; detail: string; state: ProcessStepState; returnFromPrevious?: boolean };
 
-const fallbackDocumentType: DocumentType = { id: 'PDS_CONTRACT', name: 'Договор ПДС' };
-const fieldProps = { fullWidth: true, size: 'small' as const };
+type ProcessStep = { title: string; detail: string; state: ProcessStepState; returnFromPrevious?: boolean };
 
 function AttributeRow({ label, children }: PropsWithChildren<{ label: string }>) {
 	return (
@@ -64,46 +60,6 @@ function AttributeRow({ label, children }: PropsWithChildren<{ label: string }>)
 		</Box>
 	);
 }
-
-const processCopy: Record<Exclude<ApprovalStatus, 'STORED'>, ProcessStep[]> = {
-	CREATED: [
-		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-		{ title: 'Оператор', detail: 'Ожидает взятия в работу', state: 'active' },
-		{ title: 'Согласование', detail: 'Еще не направлен согласующему', state: 'wait' },
-		{ title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
-	],
-	IN_WORK: [
-		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-		{ title: 'Оператор', detail: 'Проверка и редактирование документа', state: 'active' },
-		{ title: 'Согласование', detail: 'Еще не направлен согласующему', state: 'wait' },
-		{ title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
-	],
-	ON_APPROVAL: [
-		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-		{ title: 'Оператор', detail: 'Документ подготовлен', state: 'done' },
-		{ title: 'Согласование', detail: 'Ожидает решения согласующего', state: 'active' },
-		{ title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
-	],
-	NEEDS_REVISION: [
-		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-		{ title: 'Оператор', detail: 'Документ был направлен на согласование', state: 'done' },
-		{ title: 'Согласование', detail: 'Согласующий вернул документ', state: 'rejected' },
-		{ title: 'Доработка', detail: 'Оператор исправляет замечания', state: 'active', returnFromPrevious: true },
-		{ title: 'Завершение', detail: 'Итоговый статус еще не присвоен', state: 'wait' },
-	],
-	APPROVED: [
-		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-		{ title: 'Оператор', detail: 'Документ подготовлен', state: 'done' },
-		{ title: 'Согласование', detail: 'Решение принято', state: 'done' },
-		{ title: 'Завершение', detail: 'Договор согласован', state: 'done' },
-	],
-	REJECTED: [
-		{ title: 'Карточка создана', detail: 'Договор зарегистрирован в системе', state: 'done' },
-		{ title: 'Оператор / согласующий', detail: 'Документ отклонен на маршруте', state: 'done' },
-		{ title: 'Согласование', detail: 'Дальнейшие действия не требуются', state: 'rejected' },
-		{ title: 'Завершение', detail: 'Договор отклонен', state: 'rejected' },
-	],
-};
 
 const stepStyles: Record<ProcessStepState, { borderColor: string; backgroundColor: string; color: string }> = {
 	done: { borderColor: '#b9dfc5', backgroundColor: '#eef8f1', color: '#17623c' },
@@ -207,24 +163,15 @@ export function DocumentDetailPage() {
 	if (error && !document) return <Alert severity="error">{ error }</Alert>;
 	if (!document) return null;
 
-	const isKid = document.documentTypeId === 'KID_OPS';
-	const processSteps: ProcessStep[] = isKid ? [
-		{ title: 'Карточка создана', detail: 'КИД ОПС зарегистрирован с вложением', state: 'done' },
-		{ title: 'Оператор', detail: document.status === 'CREATED' ? 'Ожидает взятия в работу' : 'Проверка и редактирование документа', state: document.status === 'STORED' ? 'done' : 'active' },
-		{ title: 'Хранение', detail: document.status === 'STORED' ? 'Документ отправлен на хранение' : 'Ожидает отправки на хранение', state: document.status === 'STORED' ? 'done' : 'wait' },
-	] : processCopy[document.status as Exclude<ApprovalStatus, 'STORED'>];
+	const definition = documentTypes.find(item => item.id === document.documentTypeId);
+	const processSteps: ProcessStep[] = [{ title: document.documentStatus, detail: document.workflow?.executor?.taskTitle || 'Состояние документа', state: document.workflowCompleted ? 'done' : 'active' }];
 	const actionMenuOpen = Boolean(actionAnchorEl);
 	const availableActions = document.workflow?.availableActions ?? [];
-	const documentOperatorCanEdit = !historical && !versionLoading && capabilities.includes('EDIT');
+	const documentOperatorCanEdit = !historical && !versionLoading && capabilities.includes('EDIT') && Boolean(definition);
 	const canAddAttachment = !historical && !versionLoading && capabilities.includes('ADD_ATTACHMENT');
 	const canManageAttachments = !historical && !versionLoading
 		&& capabilities.includes('REPLACE_ATTACHMENT') && capabilities.includes('DELETE_ATTACHMENT');
 	const decisionDisabled = historical || versionLoading || editing || saving || availableActions.length === 0;
-	const availableDocumentTypes = (() => {
-		const baseTypes = documentTypes.length > 0 ? documentTypes : [ fallbackDocumentType ];
-		if (baseTypes.some((item) => item.id === document.documentTypeId)) return baseTypes;
-		return [ { id: document.documentTypeId, name: document.documentType }, ...baseTypes ];
-	})();
 
 	const startEdit = () => {
 		setForm({
@@ -232,10 +179,7 @@ export function DocumentDetailPage() {
 			changeToken: document.changeToken,
 			requestId: crypto.randomUUID(),
 			documentTypeId: document.documentTypeId,
-			contractDate: document.contractDate,
-			contractNumber: document.contractNumber,
-			snils: document.snils,
-            signingYear: document.signingYear, lastName: document.lastName, firstName: document.firstName, middleName: document.middleName,
+			attributes: { ...document.attributes },
 		});
 		setValidationError(null);
 		setActionError(null);
@@ -249,20 +193,15 @@ export function DocumentDetailPage() {
 		setForm(null);
 	};
 
-	const updateField = (field: AttributeField, value: string) => {
-		setForm((current) => current ? { ...current, [field]: value } : current);
-		setValidationError(null);
-		setActionError(null);
-	};
-
-	const updateSnils = (value: string) => {
-		updateField('snils', formatSnils(value));
+	const updateField = (field: string, value: AttributeValue) => {
+		setForm(current => current ? { ...current, attributes: { ...current.attributes, [field]: value } } : current);
+		setValidationError(null); setActionError(null);
 	};
 
 	const saveAttributes = async () => {
 		if (!form) return;
 
-		const formError = validateDocumentAttributes(form);
+		const formError = validateDocumentAttributes(form, definition);
 		if (formError) {
 			setValidationError(formError);
 			return;
@@ -276,19 +215,13 @@ export function DocumentDetailPage() {
 					changeToken: form.changeToken,
 					requestId: form.requestId,
 					documentTypeId: form.documentTypeId,
-					contractDate: form.contractDate,
-					contractNumber: form.contractNumber.trim(),
-					snils: form.snils.trim(),
-                    signingYear: form.signingYear, lastName: form.lastName, firstName: form.firstName, middleName: form.middleName,
+					attributes: form.attributes,
 				},
 			})).unwrap();
 
 			setForm({
 				documentTypeId: updated.documentTypeId,
-				contractDate: updated.contractDate,
-				contractNumber: updated.contractNumber,
-				snils: updated.snils,
-                signingYear: updated.signingYear, lastName: updated.lastName, firstName: updated.firstName, middleName: updated.middleName,
+				attributes: updated.attributes,
 			});
 			setValidationError(null);
 			setActionError(null);
@@ -310,9 +243,7 @@ export function DocumentDetailPage() {
 		try {
 			await dispatch(completeDocumentApproval({
 				id: document.id,
-				payload: action.result
-					? { actionCode: action.code, parameters: action.result }
-					: action.status ? { approvalStatus: action.status } : { actionCode: action.code },
+				payload: { actionCode: action.code },
 			})).unwrap();
 		} catch (submitError) {
 			setActionError(submitError instanceof Error ? submitError.message : String(submitError));
@@ -426,12 +357,12 @@ export function DocumentDetailPage() {
 			{versionLoading && <Alert severity="info">Загрузка версии…</Alert>}
 			<Breadcrumbs separator="›" sx={ { fontSize: 12.5 } }>
 				<Link component={ RouterLink } to="/" underline="hover" color="secondary.main">Документы</Link>
-				<Typography color="text.primary" sx={ { fontSize: 12.5 } }>{ document.documentType } { document.contractNumber }</Typography>
+				<Typography color="text.primary" sx={ { fontSize: 12.5 } }>{ document.documentType } { document.id }</Typography>
 			</Breadcrumbs>
 
 			<Stack direction={ { xs: 'column', lg: 'row' } } spacing={ 1.5 } sx={ { alignItems: { lg: 'center' }, justifyContent: 'space-between' } }>
 				<Stack direction={ { xs: 'column', sm: 'row' } } spacing={ 1.5 } sx={ { alignItems: { xs: 'flex-start', sm: 'center' } } }>
-					<Typography variant="h4">{ document.documentType } { document.contractNumber }</Typography>
+					<Typography variant="h4">{ document.documentType } { document.id }</Typography>
 					<DocumentStatusChip status={ document.documentStatus }/>
 					<TextField select size="small" label="Версия документа" value={ selectedVersion ?? 'current' }
 						disabled={ editing || saving || versionLoading } sx={{ minWidth: 220 }}
@@ -514,38 +445,13 @@ export function DocumentDetailPage() {
 							<Stack spacing={ 1.5 }>
 								{ validationError && <Alert severity="error">{ validationError }</Alert> }
 								<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 } }>
-									<FormField label="Вид документа" required>
-										<TextField { ...fieldProps } select value={ form.documentTypeId } disabled>
-											{ availableDocumentTypes.map((item) => <MenuItem key={ item.id } value={ item.id }>{ item.name }</MenuItem>) }
-										</TextField>
-									</FormField>
-									<FormField label="Дата договора" required>
-										<TextField { ...fieldProps } type="date" value={ form.contractDate } onChange={ (event) => updateField('contractDate', event.target.value) }
-										           disabled={ saving }/>
-									</FormField>
-									<FormField label="Номер договора" required>
-										<TextField { ...fieldProps } value={ form.contractNumber } onChange={ (event) => updateField('contractNumber', event.target.value) }
-										           placeholder={isKid ? "ОПС-ХХХ-ХХХХ-ХХХХХХХ" : "Введите номер договора"} disabled={ saving } slotProps={ { htmlInput: { maxLength: 64 } } }/>
-									</FormField>
-									<FormField label="СНИЛС" required>
-										<TextField { ...fieldProps } value={ form.snils } onChange={ (event) => updateSnils(event.target.value) } helperText={isKid ? 'Цифровой, в формате: „ХХХ-ХХХ-ХХХ ХХ“' : undefined} placeholder="Введите СНИЛС" disabled={ saving }
-										           slotProps={ { htmlInput: { maxLength: 14, inputMode: 'numeric' } } }/>
-									</FormField>
-									{isKid && <KidOpsFields value={form} onChange={updateField} disabled={saving} />}
+                                    {definition && <DocumentFields definition={definition} value={form.attributes} onChange={updateField} disabled={saving} />}
 								</Box>
 							</Stack>
 						) : (
 							<>
 								<AttributeRow label="Вид документа">{ document.documentType }</AttributeRow>
-								<AttributeRow label="Дата договора">{ formatDate(document.contractDate) }</AttributeRow>
-								<AttributeRow label="Номер договора">{ document.contractNumber }</AttributeRow>
-								<AttributeRow label="СНИЛС">{ document.snils }</AttributeRow>
-                                {isKid && <>
-                                  <AttributeRow label="Год подписания">{document.signingYear}</AttributeRow>
-                                  <AttributeRow label="Фамилия">{document.lastName}</AttributeRow>
-                                  <AttributeRow label="Имя">{document.firstName}</AttributeRow>
-                                  <AttributeRow label="Отчество">{document.middleName}</AttributeRow>
-                                </>}
+                                {(definition?.ui.fields ?? Object.keys(document.attributes)).map(name => <AttributeRow key={name} label={definition?.schema.properties[name]?.title || name}>{displayAttribute(document.attributes[name], definition?.schema.properties[name])}</AttributeRow>)}
 								<AttributeRow label="Дата создания">{ document.createdAt ? formatDateTime(document.createdAt) : undefined }</AttributeRow>
 								<AttributeRow label="Кто создал">{ document.createdBy }</AttributeRow>
 							</>

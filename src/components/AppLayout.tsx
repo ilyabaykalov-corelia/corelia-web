@@ -51,7 +51,7 @@ import type { TaskCountersDelta } from '../types/task';
 
 const expandedDrawerWidth = 240;
 const collapsedDrawerWidth = 72;
-const registryLimit = 1000;
+const registryLimit = 25;
 
 const primaryItems = [
   { label: 'Главная', icon: HomeOutlinedIcon, route: '/' },
@@ -102,7 +102,7 @@ export function AppLayout({ children }: PropsWithChildren) {
   const sidebarCollapsed = desktop && collapsed;
   const drawerWidth = sidebarCollapsed ? collapsedDrawerWidth : expandedDrawerWidth;
   const displayUser = authUser ?? user;
-  const hasRegistryDocuments = registryYears.length > 0;
+  const hasRegistryDocuments = documentTypes.length > 0;
   const activeRegistryYear = registryYears.find((year) => filters.dateFrom === `${year}-01-01` && filters.dateTo === `${year}-12-31`);
   const allDocumentsActive = location.pathname === '/documents' && !filters.documentTypeId && activeRegistryYear === undefined;
 
@@ -242,7 +242,7 @@ export function AppLayout({ children }: PropsWithChildren) {
     <Stack sx={{ height: '100%', bgcolor: '#fff' }}>
       <Stack sx={{ height: 70, flexShrink: 0, px: sidebarCollapsed ? 0 : 2.5, justifyContent: 'center', alignItems: sidebarCollapsed ? 'center' : 'flex-start' }}>
         <Box sx={{ width: sidebarCollapsed ? 34 : 142, overflow: 'hidden', transition: theme.transitions.create('width') }}>
-          <Box component="img" src="/sber-npf-logo.png" alt="Сбер НПФ" sx={{ width: 142, maxWidth: 'none', height: 'auto', display: 'block' }} />
+          <Typography sx={{ fontSize: 25, fontWeight: 700, color: 'primary.main' }}>Corelia</Typography>
         </Box>
       </Stack>
 
