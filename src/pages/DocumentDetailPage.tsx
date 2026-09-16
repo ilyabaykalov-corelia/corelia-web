@@ -129,11 +129,12 @@ function StepIcon({ state }: { state: ProcessStepState }) {
 export function DocumentDetailPage() {
 	const { id } = useParams();
 	const dispatch = useAppDispatch();
-	const { currentItem: currentDocument, currentUser, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
+	const { currentItem: currentDocument, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
 	const [ historicalDocument, setHistoricalDocument ] = useState<DocumentRecord | null>(null);
 	const [ documentVersions, setDocumentVersions ] = useState<DocumentVersion[]>([]);
 	const [ selectedVersion, setSelectedVersion ] = useState<number | null>(null);
 	const [ versionLoading, setVersionLoading ] = useState(false);
+	const [ capabilities, setCapabilities ] = useState<string[]>([]);
 	const document = historicalDocument ?? currentDocument;
 	const historical = selectedVersion !== null;
 	const [ editing, setEditing ] = useState(false);
@@ -189,6 +190,18 @@ export function DocumentDetailPage() {
 		return () => { active = false; };
 	}, [id, selectedVersion]);
 
+	useEffect(() => {
+		setCapabilities([]);
+		if (!id || currentDocument?.id !== id || selectedVersion !== null) return;
+		let active = true;
+		void documentsApi.getCapabilities(id, currentDocument.documentTypeId)
+			.then(result => { if (active) setCapabilities(result.capabilities); })
+			.catch(error => { if (active) setActionError(String(error)); });
+		return () => { active = false; };
+	}, [id, currentDocument?.id, currentDocument?.documentTypeId, currentDocument?.version,
+		currentDocument?.changeToken, currentDocument?.status, currentDocument?.workflow?.executor?.login,
+		currentDocument?.workflow?.executor?.role, selectedVersion]);
+
 	if (selectedVersion !== null && historicalDocument?.version !== selectedVersion) return <Stack sx={{ py: 12, alignItems: 'center' }}><CircularProgress/><Typography>Загрузка версии {selectedVersion}…</Typography></Stack>;
 	if (loading && !document) return <Stack sx={ { py: 12, alignItems: 'center' } }><CircularProgress/></Stack>;
 	if (error && !document) return <Alert severity="error">{ error }</Alert>;
@@ -202,9 +215,10 @@ export function DocumentDetailPage() {
 	] : processCopy[document.status as Exclude<ApprovalStatus, 'STORED'>];
 	const actionMenuOpen = Boolean(actionAnchorEl);
 	const availableActions = document.workflow?.availableActions ?? [];
-	const documentOperatorCanEdit = !historical && !versionLoading && document.status === 'IN_WORK'
-		&& document.workflow?.executor?.login === currentUser?.login
-		&& document.workflow?.executor?.role === 'document_operator';
+	const documentOperatorCanEdit = !historical && !versionLoading && capabilities.includes('EDIT');
+	const canAddAttachment = !historical && !versionLoading && capabilities.includes('ADD_ATTACHMENT');
+	const canManageAttachments = !historical && !versionLoading
+		&& capabilities.includes('REPLACE_ATTACHMENT') && capabilities.includes('DELETE_ATTACHMENT');
 	const decisionDisabled = historical || versionLoading || editing || saving || availableActions.length === 0;
 	const availableDocumentTypes = (() => {
 		const baseTypes = documentTypes.length > 0 ? documentTypes : [ fallbackDocumentType ];
@@ -589,7 +603,7 @@ export function DocumentDetailPage() {
 					<SectionPanel
 						title="Вложения"
 						count={ document.attachments.length }
-						inlineAction={ documentOperatorCanEdit ? (
+						inlineAction={ canAddAttachment ? (
 							<Tooltip title="Добавить вложение">
 								<span>
 									<IconButton
@@ -621,7 +635,7 @@ export function DocumentDetailPage() {
 								attachments={ document.attachments }
 								loadingPreviewId={ previewAttachmentId }
 								loadingDownloadId={ downloadingAttachmentId }
-								canManage={ documentOperatorCanEdit && !saving }
+								canManage={ canManageAttachments && !saving }
 								onPreview={ (attachment) => void openAttachmentPreview(attachment) }
 								onDownload={ (attachment) => void downloadAttachment(attachment) }
 								onReplace={ (attachment) => {

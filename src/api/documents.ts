@@ -111,6 +111,9 @@ export const documentsApi = {
   getById: async (id: string, type?: string) => normalizeDocument(
     await apiClient.get<CoreliaDocumentRecord>(type ? `${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}` : `${apiRoot}/documents/by-id/${encodeURIComponent(id)}`),
   ),
+  getCapabilities: (id: string, type: string) => apiClient.get<{ capabilities: string[] }>(
+    `${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(id)}/capabilities`,
+  ),
   getVersions: async (id: string, type?: string) => {
     const code = type ?? (await documentsApi.getById(id)).documentTypeId;
     return apiClient.get<{ items: DocumentVersion[] }>(`${apiRoot}/documents/${encodeURIComponent(code)}/${encodeURIComponent(id)}/versions`);
