@@ -7,6 +7,8 @@ import type {
   CurrentUser,
   DocumentApprovalRequest,
   DocumentTypesResponse,
+  DocumentType,
+  DocumentAttributes,
   DocumentRecord,
   DocumentSearchRequest,
   DocumentSearchResponse,
@@ -16,16 +18,6 @@ import type {
 } from '../types/document';
 
 const apiRoot = '/api/core/v1';
-const documentAttributes = (type: string, values: Omit<CreateDocumentRequest, 'documentTypeId'>) => ({
-  contractNumber: values.contractNumber.trim(), contractDate: values.contractDate, snils: values.snils.trim(),
-  ...(type === 'KID_OPS' ? { signingYear: Number(values.signingYear), lastName: values.lastName?.trim(), firstName: values.firstName?.trim(), middleName: values.middleName?.trim() ?? '' } : {}),
-});
-
-interface DocumentTypeCatalogResponse {
-  items: Array<{ code?: string; id?: string; name: string }>;
-  total: number;
-}
-
 interface CoreliaDocumentRecord {
   version?: number;
   currentVersion?: number;
@@ -35,12 +27,13 @@ interface CoreliaDocumentRecord {
   id: string;
   typeCode: string;
   typeName: string;
-  attributes?: Partial<Pick<DocumentRecord, 'contractDate' | 'contractNumber' | 'snils' | 'signingYear' | 'lastName' | 'firstName' | 'middleName'>>;
+  attributes?: DocumentAttributes;
   status: DocumentRecord['status'];
   statusLabel: DocumentRecord['documentStatus'];
   createdBy?: string;
   createdAt?: string;
   processInstanceId?: string;
+  workflowCompleted?: boolean;
   workflow?: DocumentWorkflow;
   attachments?: Attachment[];
 }
@@ -54,18 +47,13 @@ const normalizeDocument = (document: CoreliaDocumentRecord): DocumentRecord => (
   id: document.id,
   documentTypeId: document.typeCode,
   documentType: document.typeName,
-  contractDate: document.attributes?.contractDate ?? '',
-  contractNumber: document.attributes?.contractNumber ?? '',
-  snils: document.attributes?.snils ?? '',
-  signingYear: document.attributes?.signingYear,
-  lastName: document.attributes?.lastName,
-  firstName: document.attributes?.firstName,
-  middleName: document.attributes?.middleName,
+  attributes: document.attributes ?? {},
   status: document.status,
   documentStatus: document.statusLabel,
   createdBy: document.createdBy,
   createdAt: document.createdAt,
   processInstanceId: document.processInstanceId,
+  workflowCompleted: document.workflowCompleted,
   workflow: document.workflow,
   attachments: document.attachments ?? [],
 });
@@ -93,11 +81,11 @@ const downloadAttachment = async (attachment: Attachment) => {
 export const documentsApi = {
   getCurrentUser: () => apiClient.get<CurrentUser>(`${apiRoot}/auth/me`),
   getDocumentTypes: async (): Promise<DocumentTypesResponse> => {
-    const response = await apiClient.get<DocumentTypeCatalogResponse>(`${apiRoot}/document-types`);
+    const response = await apiClient.get<{ items: Array<DocumentType & { code: string }>; total: number }>(`${apiRoot}/document-types`);
     return {
       ...response,
       items: response.items
-        .map((item) => ({ id: item.id ?? item.code ?? '', name: item.name }))
+        .map((item) => ({ ...item, id: item.id ?? item.code ?? '' }))
         .filter((item) => item.id.length > 0),
     };
   },
@@ -122,16 +110,19 @@ export const documentsApi = {
     const code = type ?? (await documentsApi.getById(id)).documentTypeId;
     return normalizeDocument(await apiClient.get<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(code)}/${encodeURIComponent(id)}/versions/${version}`));
   },
-  create: async ({ documentTypeId, initialAttachment, requestId, ...values }: CreateDocumentRequest) => normalizeDocument(
-    await apiClient.post<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}`, { attributes: documentAttributes(documentTypeId, values), initialAttachment, requestId }),
+  create: async ({ documentTypeId, initialAttachment, requestId, attributes }: CreateDocumentRequest) => normalizeDocument(
+    await apiClient.post<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}`, { attributes, initialAttachment, requestId }),
   ),
-  update: async (id: string, { documentTypeId, expectedVersion, changeToken, requestId, ...attributes }: UpdateDocumentRequest) => {
+  update: async (id: string, { documentTypeId, expectedVersion, changeToken, requestId, attributes }: UpdateDocumentRequest) => {
     const path = `${apiRoot}/documents/${encodeURIComponent(documentTypeId)}/${encodeURIComponent(id)}`;
-    await apiClient.patch<CoreliaDocumentRecord>(path, { attributes: documentAttributes(documentTypeId, attributes), expectedVersion, changeToken, requestId });
+    await apiClient.patch<CoreliaDocumentRecord>(path, { attributes, expectedVersion, changeToken, requestId });
     return normalizeDocument(await apiClient.get<CoreliaDocumentRecord>(path));
   },
-  completeApproval: (id: string, payload: DocumentApprovalRequest) =>
-    apiClient.post<DocumentRecord>(`${apiRoot}/tasks/${encodeURIComponent(id)}/action`, payload),
+  completeApproval: async (id: string, payload: DocumentApprovalRequest) => {
+    if (!payload.actionCode) throw new Error('Действие не выбрано');
+    const document = await documentsApi.getById(id);
+    return normalizeDocument(await apiClient.post<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(document.documentTypeId)}/${encodeURIComponent(id)}/actions/${encodeURIComponent(payload.actionCode)}`, {}));
+  },
   uploadAttachments: async (documentId: string, attachments: AttachmentUpload[], requestId: string = crypto.randomUUID()): Promise<Attachment[]> => {
     const type = (await documentsApi.getById(documentId)).documentTypeId;
     return apiClient.post<Attachment[]>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments`, { attachments, requestId });
