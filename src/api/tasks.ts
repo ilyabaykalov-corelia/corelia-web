@@ -2,7 +2,7 @@ import { apiClient } from './client';
 import type { TaskActionRequest, TaskActionResponse, TaskOperationResponse, TaskSearchRequest, TaskSearchResponse, TaskSummary } from '../types/task';
 
 const apiRoot = '/api/core/v1';
-export const taskCountersChangedEvent = 'sber-npf:task-counters-changed';
+export const taskCountersChangedEvent = 'corelia-web:task-counters-changed';
 
 export const tasksApi = {
   summary: () => apiClient.get<TaskSummary>(`${apiRoot}/tasks/summary`),

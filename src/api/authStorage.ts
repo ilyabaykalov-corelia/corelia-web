@@ -1,9 +1,9 @@
 import type { AuthSession } from '../types/auth';
 
-const storageKey = 'sber-npf.auth.session';
+const storageKey = 'corelia-web.auth.session';
 
-export const authUnauthorizedEvent = 'sber-npf:auth-unauthorized';
-export const authSessionChangedEvent = 'sber-npf:auth-session-changed';
+export const authUnauthorizedEvent = 'corelia-web:auth-unauthorized';
+export const authSessionChangedEvent = 'corelia-web:auth-session-changed';
 
 const canUseStorage = () => typeof window !== 'undefined' && Boolean(window.localStorage);
 
