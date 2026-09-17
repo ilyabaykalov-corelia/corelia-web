@@ -23,32 +23,24 @@ import {
   PriorityHigh as PriorityHighIcon,
   SaveOutlined as SaveOutlinedIcon,
 } from '@mui/icons-material';
-import { KidOpsFields } from '../features/documents/components/KidOpsFields';
+import { DocumentFields } from '../features/documents/components/DocumentFields';
 import { FormField } from '../components/common/FormField';
 import { SectionPanel } from '../components/common/SectionPanel';
 import { SummaryRow } from '../components/common/SummaryRow';
 import { getSupportedFileKind } from '../components/DocumentFileIcon';
 import { FilePreviewDialog } from '../components/FilePreviewDialog';
 import { LocalDocumentFilesList } from '../features/documents/components/DocumentFilesList';
-import { formatSnils, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
+import { displayAttribute, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
 import { createDocument, fetchDocumentTypes, uploadDocumentAttachments } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { AttachmentUpload, CreateDocumentRequest, DocumentType } from '../types/document';
+import type { AttachmentUpload, CreateDocumentRequest, AttributeValue } from '../types/document';
 import { fileToAttachmentUpload } from '../utils/file';
-import { formatDate, todayIsoDate } from '../utils/format';
 
 const maxFileSize = 100 * 1024 * 1024;
 const supportedFormats = '.pdf,.docx,.xlsx';
-const fallbackDocumentType: DocumentType = { id: 'PDS_CONTRACT', name: 'Договор ПДС' };
+const initialForm: CreateDocumentRequest = { documentTypeId: '', attributes: {} };
 
-const initialForm: CreateDocumentRequest = {
-  documentTypeId: fallbackDocumentType.id,
-  contractDate: todayIsoDate(),
-  contractNumber: '',
-  snils: '',
-};
-
-const steps = ['Атрибуты договора', 'Вложения', 'Подтверждение'];
+const steps = ['Атрибуты документа', 'Вложения', 'Подтверждение'];
 const fieldProps = { fullWidth: true, size: 'small' as const };
 
 export function DocumentCreatePage() {
@@ -69,9 +61,9 @@ export function DocumentCreatePage() {
   const [dragActive, setDragActive] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const availableDocumentTypes = documentTypes.length > 0 ? documentTypes : [fallbackDocumentType];
-  const isKid = form.documentTypeId === 'KID_OPS';
-  const selectedDocumentType = availableDocumentTypes.find((item) => item.id === form.documentTypeId) ?? fallbackDocumentType;
+  const availableDocumentTypes = documentTypes;
+  const selectedDocumentType = availableDocumentTypes.find((item) => item.id === form.documentTypeId);
+  const initialRequired = selectedDocumentType?.initialAttachmentRequired ?? false;
 
   useEffect(() => {
     if (documentTypes.length === 0) void dispatch(fetchDocumentTypes());
@@ -83,17 +75,19 @@ export function DocumentCreatePage() {
     setForm((current) => ({ ...current, documentTypeId: documentTypes[0].id }));
   }, [documentTypes, form.documentTypeId]);
 
-  const updateField = (field: keyof CreateDocumentRequest, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }));
+  const updateField = (field: string, value: AttributeValue) => {
+    setForm(current => ({ ...current, attributes: { ...current.attributes, [field]: value } }));
     setValidationError(null);
   };
-
-  const updateSnils = (value: string) => {
-    updateField('snils', formatSnils(value));
+  const selectType = (documentTypeId: string) => {
+    setForm({ documentTypeId, attributes: {} }); setFiles([]); setValidationError(null);
+    creationRequestId.current = crypto.randomUUID();
   };
 
   const addFiles = (incoming: FileList | File[]) => {
+    if (!selectedDocumentType?.attachments.enabled) return;
     const incomingFiles = Array.from(incoming);
+    if (files.length + incomingFiles.length > selectedDocumentType.attachments.maxCount) { setValidationError('Превышено допустимое количество вложений'); return; }
     const invalidFiles = incomingFiles.filter((file) => !getSupportedFileKind(file.name));
     const oversizedFiles = incomingFiles.filter((file) => file.size > maxFileSize);
     const acceptedFiles = incomingFiles.filter((file) => getSupportedFileKind(file.name) && file.size <= maxFileSize);
@@ -119,7 +113,7 @@ export function DocumentCreatePage() {
   };
 
   const moveNext = () => {
-    const stepError = activeStep === 0 ? validateDocumentAttributes(form) : isKid && files.length === 0 ? 'Для создания КИД ОПС добавьте вложение' : null;
+    const stepError = activeStep === 0 ? validateDocumentAttributes(form, selectedDocumentType) : initialRequired && files.length === 0 ? 'Для создания документа добавьте вложение' : null;
     if (stepError) {
       setValidationError(stepError);
       return;
@@ -129,7 +123,7 @@ export function DocumentCreatePage() {
   };
 
   const handleSave = async () => {
-    const formError = validateDocumentAttributes(form) ?? (isKid && files.length === 0 ? 'Для создания КИД ОПС добавьте вложение' : null);
+    const formError = validateDocumentAttributes(form, selectedDocumentType) ?? (initialRequired && files.length === 0 ? 'Для создания документа добавьте вложение' : null);
     if (formError) {
       setValidationError(formError);
       return;
@@ -146,13 +140,11 @@ export function DocumentCreatePage() {
         const created = await dispatch(createDocument({
           ...form,
           requestId: creationRequestId.current,
-          initialAttachment: isKid ? attachments[0] : undefined,
+          initialAttachment: initialRequired ? attachments[0] : undefined,
           documentTypeId: form.documentTypeId,
-          contractDate: form.contractDate,
-          contractNumber: form.contractNumber.trim(),
-          snils: form.snils.trim(),
+
         })).unwrap();
-        upload = { documentId: created.id, attachments: isKid ? attachments.slice(1) : attachments, requestId: crypto.randomUUID() };
+        upload = { documentId: created.id, attachments: initialRequired ? attachments.slice(1) : attachments, requestId: crypto.randomUUID() };
       }
       if (upload.attachments.length > 0) {
         await dispatch(uploadDocumentAttachments(upload)).unwrap();
@@ -192,7 +184,7 @@ export function DocumentCreatePage() {
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', overflowX: 'auto', pb: 0.7 }}>
           {steps.map((step, index) => {
             const completed = index < activeStep;
-            const warning = completed && index === 0 && Boolean(validateDocumentAttributes(form));
+            const warning = completed && index === 0 && Boolean(validateDocumentAttributes(form, selectedDocumentType));
             const statusLabel = index === activeStep ? 'текущий шаг' : warning ? 'требует внимания' : completed ? 'завершен' : 'не начат';
 
             return (
@@ -232,26 +224,18 @@ export function DocumentCreatePage() {
           <SectionPanel title="Атрибуты карточки">
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
               <FormField label="Вид документа" required>
-                <TextField {...fieldProps} select value={form.documentTypeId} onChange={(event) => updateField('documentTypeId', event.target.value)}>
+                <TextField {...fieldProps} select value={form.documentTypeId} onChange={(event) => selectType(event.target.value)}>
                   {availableDocumentTypes.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
                 </TextField>
               </FormField>
-              <FormField label="Дата договора" required>
-                <TextField {...fieldProps} type="date" value={form.contractDate} onChange={(event) => updateField('contractDate', event.target.value)} />
-              </FormField>
-              <FormField label="Номер договора" required>
-                <TextField {...fieldProps} value={form.contractNumber} onChange={(event) => updateField('contractNumber', event.target.value)} placeholder={isKid ? "ОПС-ХХХ-ХХХХ-ХХХХХХХ" : "Введите номер договора"} slotProps={{ htmlInput: { maxLength: 64 } }} />
-              </FormField>
-              <FormField label="СНИЛС" required>
-                <TextField {...fieldProps} value={form.snils} onChange={(event) => updateSnils(event.target.value)} helperText={isKid ? 'Цифровой, в формате: „ХХХ-ХХХ-ХХХ ХХ“' : undefined} placeholder="Введите СНИЛС" slotProps={{ htmlInput: { maxLength: 14, inputMode: 'numeric' } }} />
-              </FormField>
-              {isKid && <KidOpsFields value={form} onChange={updateField} disabled={saving} />}
+              {selectedDocumentType && <DocumentFields definition={selectedDocumentType} value={form.attributes} onChange={updateField} disabled={saving} />}
             </Box>
           </SectionPanel>
         )}
 
-        {activeStep === 1 && (
-          <SectionPanel title={isKid ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
+        {activeStep === 1 && !selectedDocumentType?.attachments.enabled && <Alert severity="info">Для этого вида вложения отключены</Alert>}
+        {activeStep === 1 && selectedDocumentType?.attachments.enabled && (
+          <SectionPanel title={initialRequired ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: files.length > 0 ? 'minmax(0, 1.15fr) minmax(360px, .85fr)' : '1fr' }, gap: 2 }}>
               <Box>
                 <Box
@@ -293,19 +277,11 @@ export function DocumentCreatePage() {
 
         {activeStep === 2 && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.35fr) minmax(340px, .8fr)' }, gap: 2, alignItems: 'start' }}>
-            <SectionPanel title="Карточка договора">
-              <SummaryRow label="Вид документа" value={selectedDocumentType.name} />
-              <SummaryRow label="Дата договора" value={formatDate(form.contractDate)} />
-              <SummaryRow label="Номер договора" value={form.contractNumber} />
-              <SummaryRow label="СНИЛС" value={form.snils} />
-              {isKid && <>
-                <SummaryRow label="Год подписания" value={String(form.signingYear ?? '')} />
-                <SummaryRow label="Фамилия" value={form.lastName ?? ''} />
-                <SummaryRow label="Имя" value={form.firstName ?? ''} />
-                <SummaryRow label="Отчество" value={form.middleName || '—'} />
-              </>}
+            <SectionPanel title="Карточка документа">
+              <SummaryRow label="Вид документа" value={selectedDocumentType?.name ?? 'Вид не выбран'} />
+              {selectedDocumentType?.ui.fields.map(name => <SummaryRow key={name} label={selectedDocumentType.schema.properties[name].title || name} value={displayAttribute(form.attributes[name], selectedDocumentType.schema.properties[name])} />)}
             </SectionPanel>
-            <SectionPanel title={isKid ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
+            <SectionPanel title={initialRequired ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
               {files.length > 0 ? <LocalDocumentFilesList files={files} onPreview={setPreviewFile} /> : <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center', fontSize: 12.5 }}>Вложения не добавлены</Typography>}
             </SectionPanel>
           </Box>

@@ -228,7 +228,7 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
                       {task.title || task.type || 'Задача согласования'}
                     </Typography>
                     <Typography color="text.secondary" sx={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {task.description || getAttributeValue(task, 'contractNumber') || task.id}
+                      {task.description || task.id}
                     </Typography>
                   </Box>
                   <Box>
