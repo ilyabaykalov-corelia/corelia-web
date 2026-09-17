@@ -66,11 +66,16 @@ const upsertDocument = (items: DocumentRecord[], document: DocumentRecord) => {
  * Добавляет год документа в список годов реестра, сохраняя сортировку от нового года к старому.
  *
  * @param years - Текущий список годов в Redux-состоянии.
- * @param contractDate - Дата договора, из которой извлекается год.
+ * @param dateValue - Дата договора, из которой извлекается год.
  */
-const includeRegistryYear = (years: number[], contractDate: string) => {
-  const year = Number(contractDate.slice(0, 4));
-  if (!Number.isFinite(year) || years.includes(year)) return;
+const registryDate = (document: DocumentRecord, types: DocumentType[]) => {
+  const field = types.find(type => type.id === document.documentTypeId)?.ui.dateField;
+  return field ? String(document.attributes[field] ?? '') : '';
+};
+
+const includeRegistryYear = (years: number[], dateValue: string) => {
+  const year = Number(dateValue.slice(0, 4));
+  if (!year || !Number.isFinite(year) || years.includes(year)) return;
   years.push(year);
   years.sort((left, right) => right - left);
 };
@@ -79,11 +84,11 @@ const includeRegistryYear = (years: number[], contractDate: string) => {
  * Добавляет год документа в индекс годов конкретного вида документа.
  *
  * @param yearsByDocumentType - Индекс годов по идентификатору вида документа.
- * @param document - Документ, из которого берутся вид документа и год договора.
+ * @param document - Документ, из которого берутся вид документа и год документа.
  */
-const includeDocumentTypeYear = (yearsByDocumentType: Record<string, number[]>, document: DocumentRecord) => {
-  const year = Number(document.contractDate.slice(0, 4));
-  if (!Number.isFinite(year)) return;
+const includeDocumentTypeYear = (yearsByDocumentType: Record<string, number[]>, document: DocumentRecord, types: DocumentType[]) => {
+  const year = Number(registryDate(document, types).slice(0, 4));
+  if (!year || !Number.isFinite(year)) return;
 
   const years = yearsByDocumentType[document.documentTypeId] ?? [];
   if (years.includes(year)) return;
@@ -266,8 +271,8 @@ const documentsSlice = createSlice({
         state.items = action.payload.items;
         state.total = action.payload.total;
         action.payload.items.forEach((document) => {
-          includeRegistryYear(state.registryYears, document.contractDate);
-          includeDocumentTypeYear(state.registryYearsByDocumentType, document);
+          includeRegistryYear(state.registryYears, registryDate(document, state.documentTypes));
+          includeDocumentTypeYear(state.registryYearsByDocumentType, document, state.documentTypes);
         });
       })
       .addCase(fetchDocuments.rejected, (state, action) => {
@@ -298,6 +303,10 @@ const documentsSlice = createSlice({
       })
       .addCase(fetchDocumentTypes.fulfilled, (state, action) => {
         state.documentTypes = action.payload.items;
+        state.items.forEach(document => {
+          includeRegistryYear(state.registryYears, registryDate(document, state.documentTypes));
+          includeDocumentTypeYear(state.registryYearsByDocumentType, document, state.documentTypes);
+        });
       })
       .addCase(fetchDocumentTypes.rejected, (state, action) => {
         state.error = String(action.payload ?? action.error.message);
@@ -309,8 +318,8 @@ const documentsSlice = createSlice({
       .addCase(createDocument.fulfilled, (state, action) => {
         state.saving = false;
         state.currentItem = action.payload;
-        includeRegistryYear(state.registryYears, action.payload.contractDate);
-        includeDocumentTypeYear(state.registryYearsByDocumentType, action.payload);
+        includeRegistryYear(state.registryYears, registryDate(action.payload, state.documentTypes));
+        includeDocumentTypeYear(state.registryYearsByDocumentType, action.payload, state.documentTypes);
         if (upsertDocument(state.items, action.payload)) state.total += 1;
       })
       .addCase(createDocument.rejected, (state, action) => {
@@ -324,8 +333,8 @@ const documentsSlice = createSlice({
       .addCase(updateDocument.fulfilled, (state, action) => {
         state.saving = false;
         state.currentItem = action.payload;
-        includeRegistryYear(state.registryYears, action.payload.contractDate);
-        includeDocumentTypeYear(state.registryYearsByDocumentType, action.payload);
+        includeRegistryYear(state.registryYears, registryDate(action.payload, state.documentTypes));
+        includeDocumentTypeYear(state.registryYearsByDocumentType, action.payload, state.documentTypes);
         upsertDocument(state.items, action.payload);
       })
       .addCase(updateDocument.rejected, (state, action) => {
@@ -339,8 +348,8 @@ const documentsSlice = createSlice({
       .addCase(completeDocumentApproval.fulfilled, (state, action) => {
         state.saving = false;
         state.currentItem = action.payload;
-        includeRegistryYear(state.registryYears, action.payload.contractDate);
-        includeDocumentTypeYear(state.registryYearsByDocumentType, action.payload);
+        includeRegistryYear(state.registryYears, registryDate(action.payload, state.documentTypes));
+        includeDocumentTypeYear(state.registryYearsByDocumentType, action.payload, state.documentTypes);
         upsertDocument(state.items, action.payload);
       })
       .addCase(completeDocumentApproval.rejected, (state, action) => {
@@ -358,8 +367,8 @@ const documentsSlice = createSlice({
             action.payload.processInstanceId ??
             (state.currentItem?.id === action.payload.id ? state.currentItem.processInstanceId : undefined),
         };
-        includeRegistryYear(state.registryYears, state.currentItem.contractDate);
-        includeDocumentTypeYear(state.registryYearsByDocumentType, state.currentItem);
+        includeRegistryYear(state.registryYears, registryDate(state.currentItem, state.documentTypes));
+        includeDocumentTypeYear(state.registryYearsByDocumentType, state.currentItem, state.documentTypes);
         upsertDocument(state.items, state.currentItem);
       })
       .addCase(uploadDocumentAttachments.rejected, (state, action) => {

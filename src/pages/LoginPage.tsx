@@ -32,7 +32,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session, loading, error } = useAppSelector((state) => state.auth);
-  const [username, setUsername] = useState('tester');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const from = (location.state as LocationState | null)?.from;
@@ -59,7 +59,7 @@ export function LoginPage() {
       <Paper variant="outlined" sx={{ width: '100%', maxWidth: 420, p: { xs: 2.2, sm: 3 }, borderRadius: 1 }}>
         <Stack spacing={2.2}>
           <Stack spacing={1.2} sx={{ textAlign: 'center', alignItems: 'center' }}>
-            <Box component="img" src="/sber-npf-logo.png" alt="Сбер НПФ" sx={{ width: 156, height: 'auto' }} />
+            <Typography sx={{ fontSize: 25, fontWeight: 700, color: 'primary.main' }}>Corelia</Typography>
             <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: '#e6f5ed', color: 'primary.main', display: 'grid', placeItems: 'center' }}>
               <LockOutlinedIcon sx={{ fontSize: 24 }} />
             </Box>
