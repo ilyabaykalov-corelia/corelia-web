@@ -1,6 +1,6 @@
 # Разработка и проверка React
 
-Все команды — из корня sber-npf-react.
+Все команды — из корня corelia-web.
 
 ```bash
 npm ci
