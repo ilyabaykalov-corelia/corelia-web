@@ -242,7 +242,7 @@ export function AppLayout({ children }: PropsWithChildren) {
     <Stack sx={{ height: '100%', bgcolor: '#fff' }}>
       <Stack sx={{ height: 70, flexShrink: 0, px: sidebarCollapsed ? 0 : 2.5, justifyContent: 'center', alignItems: sidebarCollapsed ? 'center' : 'flex-start' }}>
         <Box sx={{ width: sidebarCollapsed ? 34 : 142, overflow: 'hidden', transition: theme.transitions.create('width') }}>
-          <Typography sx={{ fontSize: 25, fontWeight: 700, color: 'primary.main' }}>Corelia</Typography>
+          <Box component="img" src="/corelia-logo.svg" alt="Corelia" sx={{ width: 142, maxWidth: 'none', height: 'auto', display: 'block' }} />
         </Box>
       </Stack>
 
