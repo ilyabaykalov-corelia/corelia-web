@@ -1,21 +1,16 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
-  IconButton,
-  InputAdornment,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import {
   LockOutlined as LockOutlinedIcon,
   LoginOutlined as LoginOutlinedIcon,
-  VisibilityOffOutlined as VisibilityOffOutlinedIcon,
-  VisibilityOutlined as VisibilityOutlinedIcon,
 } from '@mui/icons-material';
 import { loginUser } from '../store/authSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -32,9 +27,6 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session, loading, error } = useAppSelector((state) => state.auth);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const from = (location.state as LocationState | null)?.from;
   const returnTo = `${from?.pathname ?? '/'}${from?.search ?? ''}`;
 
@@ -44,11 +36,9 @@ export function LoginPage() {
 
   if (session) return <Navigate to={returnTo} replace />;
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submit = async () => {
     try {
-      await dispatch(loginUser({ username: username.trim(), password })).unwrap();
-      navigate(returnTo, { replace: true });
+      await dispatch(loginUser()).unwrap();
     } catch {
       // Ошибка уже сохранена в auth slice и показана в Alert.
     }
@@ -71,47 +61,13 @@ export function LoginPage() {
 
           {error && <Alert severity="error">{error}</Alert>}
 
-          <Stack component="form" spacing={1.5} onSubmit={(event) => { void submit(event); }}>
-            <TextField
-              autoFocus
-              fullWidth
-              size="small"
-              label="Логин"
-              autoComplete="username"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-            />
-            <TextField
-              fullWidth
-              size="small"
-              label="Пароль"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        edge="end"
-                        aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
-                        onClick={() => setShowPassword((current) => !current)}
-                        size="small"
-                      >
-                        {showPassword ? <VisibilityOffOutlinedIcon sx={{ fontSize: 19 }} /> : <VisibilityOutlinedIcon sx={{ fontSize: 19 }} />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
+          <Stack spacing={1.5}>
             <Button
-              type="submit"
               variant="contained"
               size="large"
               startIcon={<LoginOutlinedIcon />}
-              disabled={loading || !username.trim() || !password}
+              onClick={() => { void submit(); }}
+              disabled={loading}
             >
               {loading ? 'Вход...' : 'Войти'}
             </Button>

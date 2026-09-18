@@ -1,13 +1,10 @@
-import type { AuthSession } from '../types/auth';
 import {
   authSessionChangedEvent,
   authUnauthorizedEvent,
   clearStoredAuthSession,
   getStoredAccessToken,
-  getStoredAuthSession,
-  getStoredRefreshToken,
-  setStoredAuthSession,
 } from './authStorage';
+import { refreshKeycloakToken } from './keycloak';
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const defaultBaseUrl = 'http://localhost:7170';
@@ -24,8 +21,6 @@ export class ApiError extends Error {
   }
 }
 
-const authEndpoint = (path: string) => path.includes('/auth/login') || path.includes('/auth/refresh') || path.includes('/auth/logout');
-
 const buildHeaders = (initHeaders?: HeadersInit) => {
   const headers = new Headers(initHeaders);
   if (!headers.has('Accept')) headers.set('Accept', 'application/json');
@@ -40,31 +35,7 @@ const buildHeaders = (initHeaders?: HeadersInit) => {
 };
 
 const refreshSession = async () => {
-  const currentSession = getStoredAuthSession();
-  const refreshToken = getStoredRefreshToken();
-  if (!currentSession || !refreshToken) return false;
-
-  const response = await fetch(buildApiUrl('/api/core/v1/auth/refresh'), {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ refreshToken }),
-  });
-
-  if (!response.ok) {
-    clearStoredAuthSession();
-    window.dispatchEvent(new Event(authUnauthorizedEvent));
-    return false;
-  }
-
-  const refreshedSession = (await response.json()) as AuthSession;
-  setStoredAuthSession({
-    ...refreshedSession,
-    user: refreshedSession.user ?? currentSession.user,
-  });
-  return true;
+  return Boolean(await refreshKeycloakToken());
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -75,7 +46,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   let response = await fetch(buildApiUrl(path), requestInit);
 
-  if (response.status === 401 && !authEndpoint(path) && await refreshSession()) {
+  if (response.status === 401 && await refreshSession()) {
     response = await fetch(buildApiUrl(path), {
       ...requestInit,
       headers: buildHeaders(init?.headers),

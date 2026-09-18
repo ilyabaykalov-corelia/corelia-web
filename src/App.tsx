@@ -1,6 +1,7 @@
 import { useEffect, type PropsWithChildren } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { authSessionChangedEvent, authUnauthorizedEvent, getStoredAuthSession } from './api/authStorage';
+import { initializeKeycloak } from './api/keycloak';
 import { AppLayout } from './components/AppLayout';
 import { DocumentsListPage } from './pages/DocumentsListPage';
 import { DocumentDetailPage } from './pages/DocumentDetailPage';
@@ -34,6 +35,9 @@ export default function App() {
 
     window.addEventListener(authUnauthorizedEvent, handleUnauthorized);
     window.addEventListener(authSessionChangedEvent, handleSessionChanged);
+    void initializeKeycloak().then((session) => {
+      if (session) dispatch(setSession(session));
+    }).catch(handleUnauthorized);
     return () => {
       window.removeEventListener(authUnauthorizedEvent, handleUnauthorized);
       window.removeEventListener(authSessionChangedEvent, handleSessionChanged);
