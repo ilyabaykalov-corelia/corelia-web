@@ -21,10 +21,10 @@ export class ApiError extends Error {
   }
 }
 
-const buildHeaders = (initHeaders?: HeadersInit) => {
+const buildHeaders = (initHeaders?: HeadersInit, body?: BodyInit | null) => {
   const headers = new Headers(initHeaders);
   if (!headers.has('Accept')) headers.set('Accept', 'application/json');
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (!(body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
   const accessToken = getStoredAccessToken();
   if (accessToken && !headers.has('Authorization')) {
@@ -41,7 +41,7 @@ const refreshSession = async () => {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const requestInit: RequestInit = {
     ...init,
-    headers: buildHeaders(init?.headers),
+    headers: buildHeaders(init?.headers, init?.body),
   };
 
   let response = await fetch(buildApiUrl(path), requestInit);
@@ -49,7 +49,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (response.status === 401 && await refreshSession()) {
     response = await fetch(buildApiUrl(path), {
       ...requestInit,
-      headers: buildHeaders(init?.headers),
+      headers: buildHeaders(init?.headers, init?.body),
     });
   }
 
@@ -85,6 +85,16 @@ export const apiClient = {
     request<T>(path, {
       method: 'PUT',
       body: JSON.stringify(body),
+    }),
+  postForm: <T>(path: string, body: FormData) =>
+    request<T>(path, {
+      method: 'POST',
+      body,
+    }),
+  putForm: <T>(path: string, body: FormData) =>
+    request<T>(path, {
+      method: 'PUT',
+      body,
     }),
   delete: <T>(path: string) =>
     request<T>(path, {
