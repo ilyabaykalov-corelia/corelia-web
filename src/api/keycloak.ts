@@ -5,8 +5,10 @@ import { clearStoredAuthSession, setStoredAuthSession } from './authStorage';
 const url = import.meta.env.VITE_KEYCLOAK_URL;
 const realm = import.meta.env.VITE_KEYCLOAK_REALM;
 const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
-if (!url || !realm || !clientId) throw new Error('Не заданы параметры Keycloak browser client');
-const keycloak = new Keycloak({ url, realm, clientId });
+const fixture = import.meta.env.VITE_AUTH_FIXTURE === 'true';
+if (!fixture && (!url || !realm || !clientId)) throw new Error('Не заданы параметры Keycloak browser client');
+const keycloak = new Keycloak({ url: url || 'http://fixture.invalid', realm: realm || 'fixture', clientId: clientId || 'fixture' });
+const fixtureSession: AuthSession = { accessToken: 'fixture.fake.signature', tokenType: 'Bearer', expiresIn: 3600, expiresAt: Date.now() + 3600000, user: { id: 'fixture', login: 'fixture', fullName: 'Тестовый пользователь' } };
 const user = (): AuthUser => {
   const token = keycloak.tokenParsed ?? {};
   const login = String(token.preferred_username ?? token.sub ?? '');
@@ -19,10 +21,14 @@ const publish = (): AuthSession => {
   setStoredAuthSession(value);
   return value;
 };
-export const initializeKeycloak = async () => (await keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false })) ? publish() : null;
-export const loginWithKeycloak = () => keycloak.login({ redirectUri: window.location.href });
+export const initializeKeycloak = async () => {
+  if (fixture) { setStoredAuthSession(fixtureSession); return fixtureSession; }
+  return (await keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false })) ? publish() : null;
+};
+export const loginWithKeycloak = () => fixture ? Promise.resolve() : keycloak.login({ redirectUri: window.location.href });
 export const refreshKeycloakToken = async () => {
+  if (fixture) return fixtureSession;
   try { return (await keycloak.updateToken(30)) || keycloak.token ? publish() : null; }
   catch { clearStoredAuthSession(); return null; }
 };
-export const logoutFromKeycloak = async () => { clearStoredAuthSession(); await keycloak.logout({ redirectUri: window.location.origin }); };
+export const logoutFromKeycloak = async () => { clearStoredAuthSession(); if (!fixture) await keycloak.logout({ redirectUri: window.location.origin }); };
