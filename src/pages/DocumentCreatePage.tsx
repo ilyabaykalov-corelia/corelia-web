@@ -31,11 +31,10 @@ import { getSupportedFileKind } from '../components/DocumentFileIcon';
 import { FilePreviewDialog } from '../components/FilePreviewDialog';
 import { LocalDocumentFilesList } from '../features/documents/components/DocumentFilesList';
 import { displayAttribute, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
-import { createDocument, fetchDocumentTypes, uploadDocumentAttachments } from '../store/documentsSlice';
+import { createDocument, fetchDocumentTypes, uploadDocumentFiles } from '../store/documentsSlice';
 import { documentsApi } from '../api/documents';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { AttachmentUpload, CreateDocumentRequest, AttributeValue } from '../types/document';
-import { fileToAttachmentUpload } from '../utils/file';
+import type { CreateDocumentRequest, AttributeValue } from '../types/document';
 
 const maxFileSize = 100 * 1024 * 1024;
 const supportedFormats = '.pdf,.docx,.xlsx';
@@ -52,7 +51,7 @@ export function DocumentCreatePage() {
   const { documentTypes, saving: storeSaving, error } = useAppSelector((state) => state.documents);
   const [submitting, setSubmitting] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<{
-    documentId: string; attachments: AttachmentUpload[]; requestId: string;
+    documentId: string; files: File[];
   } | null>(null);
   const saving = storeSaving || submitting;
   const [activeStep, setActiveStep] = useState(0);
@@ -137,14 +136,13 @@ export function DocumentCreatePage() {
     try {
       if (!upload) {
         // Prepare files before creating a document; retain the exact batch for retries.
-        const attachments = await Promise.all(files.map(fileToAttachmentUpload));
         const created = initialRequired
           ? await documentsApi.createWithFile({ ...form, documentTypeId: form.documentTypeId, requestId: creationRequestId.current, file: files[0] })
           : await dispatch(createDocument({ ...form, requestId: creationRequestId.current, documentTypeId: form.documentTypeId })).unwrap();
-        upload = { documentId: created.id, attachments: initialRequired ? attachments.slice(1) : attachments, requestId: crypto.randomUUID() };
+        upload = { documentId: created.id, files: initialRequired ? files.slice(1) : files };
       }
-      if (upload.attachments.length > 0) {
-        await dispatch(uploadDocumentAttachments(upload)).unwrap();
+      if (upload.files.length > 0) {
+        await dispatch(uploadDocumentFiles(upload)).unwrap();
       }
       navigate(`/documents/${upload.documentId}`);
     } catch (submitError) {
