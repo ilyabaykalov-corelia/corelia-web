@@ -32,6 +32,7 @@ import { FilePreviewDialog } from '../components/FilePreviewDialog';
 import { LocalDocumentFilesList } from '../features/documents/components/DocumentFilesList';
 import { displayAttribute, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
 import { createDocument, fetchDocumentTypes, uploadDocumentAttachments } from '../store/documentsSlice';
+import { documentsApi } from '../api/documents';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { AttachmentUpload, CreateDocumentRequest, AttributeValue } from '../types/document';
 import { fileToAttachmentUpload } from '../utils/file';
@@ -137,13 +138,9 @@ export function DocumentCreatePage() {
       if (!upload) {
         // Prepare files before creating a document; retain the exact batch for retries.
         const attachments = await Promise.all(files.map(fileToAttachmentUpload));
-        const created = await dispatch(createDocument({
-          ...form,
-          requestId: creationRequestId.current,
-          initialAttachment: initialRequired ? attachments[0] : undefined,
-          documentTypeId: form.documentTypeId,
-
-        })).unwrap();
+        const created = initialRequired
+          ? await documentsApi.createWithFile({ ...form, documentTypeId: form.documentTypeId, requestId: creationRequestId.current, file: files[0] })
+          : await dispatch(createDocument({ ...form, requestId: creationRequestId.current, documentTypeId: form.documentTypeId })).unwrap();
         upload = { documentId: created.id, attachments: initialRequired ? attachments.slice(1) : attachments, requestId: crypto.randomUUID() };
       }
       if (upload.attachments.length > 0) {
