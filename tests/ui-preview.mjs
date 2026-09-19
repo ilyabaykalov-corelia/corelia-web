@@ -3,17 +3,16 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'vite';
 const customer = process.argv[2] ?? 'customer-b';
 if (!['customer-a', 'customer-b'].includes(customer)) throw new Error('Unknown fixture');
-const config = JSON.parse(await readFile(new URL(`../../corelia/corelia-system-tests/src/test/resources/customers/${customer}/configuration.json`, import.meta.url), 'utf8'));
+const config = JSON.parse(await readFile(new URL(`../../corelia-system-tests/src/test/resources/customers/${customer}/configuration.json`, import.meta.url), 'utf8'));
 const types = config.documentTypes.map(t => ({ code: t.id, name: t.title, schema: t.schema, ui: t.ui, statuses: t.presentation.statuses, attachments: t.attachments, initialAttachmentRequired: t.attachments.initialRequired }));
 const records = types.map((t, i) => ({ id: `fixture-${i}`, typeCode: t.code, typeName: t.name, attributes: { title: `Документ ${i + 1}`, value: t.schema.properties.value.type === 'boolean' ? false : 123.5 }, status: 'OPEN', statusLabel: 'Открыт', version: 1, currentVersion: 1, changeToken: 'fixture', attachments: [], workflow: { availableActions: [], executor: null } }));
 const user = { id: 'fixture', login: 'fixture', fullName: 'Тестовый пользователь' };
-const server = await createServer({ define: { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify('') }, server: { host: '127.0.0.1', port: 7178, strictPort: true }, plugins: [{ name: 'fixture-api', configureServer(server) {
+const server = await createServer({ define: { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify(''), 'import.meta.env.VITE_AUTH_FIXTURE': JSON.stringify('true') }, server: { host: '127.0.0.1', port: 7178, strictPort: true }, plugins: [{ name: 'fixture-api', configureServer(server) {
   server.middlewares.use('/api/core/v1', async (req, res) => {
     let source = ''; for await (const chunk of req) source += chunk;
     const body = source ? JSON.parse(source) : {}, path = req.url.split('?')[0];
     let result;
-    if (path === '/auth/login') result = { accessToken: 'fixture.fake.signature', tokenType: 'Bearer', expiresAt: Date.now() + 3600000, expiresIn: 3600, user };
-    else if (path === '/auth/me') result = user;
+    if (path === '/auth/me') result = user;
     else if (path === '/document-types') result = { items: types, total: types.length };
     else if (path === '/tasks/summary') result = { my: 0, available: 0 };
     else if (path === '/tasks/search') result = { items: [], total: 0 };
