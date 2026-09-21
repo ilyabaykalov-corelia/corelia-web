@@ -206,11 +206,35 @@ export const uploadDocumentAttachments = createAsyncThunk(
   },
 );
 
+export const uploadDocumentFiles = createAsyncThunk(
+  'documents/uploadFiles',
+  async ({ documentId, files }: { documentId: string; files: File[] }, api) => {
+    try {
+      for (const file of files) await documentsApi.uploadFile(documentId, file);
+      return await documentsApi.getById(documentId);
+    } catch (error) {
+      return api.rejectWithValue(errorMessage(error));
+    }
+  },
+);
+
 export const replaceDocumentAttachment = createAsyncThunk(
   'documents/replaceAttachment',
   async ({ documentId, attachmentId, attachment }: { documentId: string; attachmentId: string; attachment: AttachmentUpload }, api) => {
     try {
       await documentsApi.replaceAttachment(attachmentId, attachment);
+      return await documentsApi.getById(documentId);
+    } catch (error) {
+      return api.rejectWithValue(errorMessage(error));
+    }
+  },
+);
+
+export const replaceDocumentFile = createAsyncThunk(
+  'documents/replaceFile',
+  async ({ documentId, attachmentId, file }: { documentId: string; attachmentId: string; file: File }, api) => {
+    try {
+      await documentsApi.replaceFile(attachmentId, file);
       return await documentsApi.getById(documentId);
     } catch (error) {
       return api.rejectWithValue(errorMessage(error));
@@ -375,6 +399,18 @@ const documentsSlice = createSlice({
         state.saving = false;
         state.error = String(action.payload ?? action.error.message);
       })
+      .addCase(uploadDocumentFiles.pending, (state) => {
+        state.saving = true;
+      })
+      .addCase(uploadDocumentFiles.fulfilled, (state, action) => {
+        state.saving = false;
+        state.currentItem = action.payload;
+        upsertDocument(state.items, action.payload);
+      })
+      .addCase(uploadDocumentFiles.rejected, (state, action) => {
+        state.saving = false;
+        state.error = String(action.payload ?? action.error.message);
+      })
       .addCase(replaceDocumentAttachment.pending, (state) => {
         state.saving = true;
       })
@@ -389,6 +425,18 @@ const documentsSlice = createSlice({
         upsertDocument(state.items, state.currentItem);
       })
       .addCase(replaceDocumentAttachment.rejected, (state, action) => {
+        state.saving = false;
+        state.error = String(action.payload ?? action.error.message);
+      })
+      .addCase(replaceDocumentFile.pending, (state) => {
+        state.saving = true;
+      })
+      .addCase(replaceDocumentFile.fulfilled, (state, action) => {
+        state.saving = false;
+        state.currentItem = action.payload;
+        upsertDocument(state.items, action.payload);
+      })
+      .addCase(replaceDocumentFile.rejected, (state, action) => {
         state.saving = false;
         state.error = String(action.payload ?? action.error.message);
       })

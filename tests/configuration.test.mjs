@@ -11,7 +11,7 @@ const { validateDocumentAttributes, displayAttribute } = await server.ssrLoadMod
 const { DocumentFields } = await server.ssrLoadModule('/src/features/documents/components/DocumentFields.tsx');
 const { documentsApi } = await server.ssrLoadModule('/src/api/documents.ts');
 const catalog = async name => {
-  const source = JSON.parse(await readFile(new URL(`../../corelia/corelia-system-tests/src/test/resources/customers/${name}/configuration.json`, import.meta.url), 'utf8'));
+  const source = JSON.parse(await readFile(new URL(`../../corelia-system-tests/src/test/resources/customers/${name}/configuration.json`, import.meta.url), 'utf8'));
   return source.documentTypes.map(type => ({ ...type, name: type.title, statuses: type.presentation.statuses, initialAttachmentRequired: type.attachments.initialRequired }));
 };
 
