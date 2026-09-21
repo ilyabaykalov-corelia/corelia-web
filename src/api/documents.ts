@@ -113,6 +113,15 @@ export const documentsApi = {
   create: async ({ documentTypeId, initialAttachment, requestId, attributes }: CreateDocumentRequest) => normalizeDocument(
     await apiClient.post<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}`, { attributes, initialAttachment, requestId }),
   ),
+  createWithFile: async ({ documentTypeId, requestId, attributes, file }: CreateDocumentRequest & { file: File }) => {
+    const form = new FormData();
+    form.set('requestId', requestId ?? crypto.randomUUID());
+    form.set('attributes', JSON.stringify(attributes));
+    form.set('file', file, file.name);
+    return normalizeDocument(
+      await apiClient.postForm<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(documentTypeId)}/stream`, form),
+    );
+  },
   update: async (id: string, { documentTypeId, expectedVersion, changeToken, requestId, attributes }: UpdateDocumentRequest) => {
     const path = `${apiRoot}/documents/${encodeURIComponent(documentTypeId)}/${encodeURIComponent(id)}`;
     await apiClient.patch<CoreliaDocumentRecord>(path, { attributes, expectedVersion, changeToken, requestId });
@@ -127,8 +136,21 @@ export const documentsApi = {
     const type = (await documentsApi.getById(documentId)).documentTypeId;
     return apiClient.post<Attachment[]>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments`, { attachments, requestId });
   },
+  uploadFile: async (documentId: string, file: File, requestId: string = crypto.randomUUID()): Promise<Attachment> => {
+    const type = (await documentsApi.getById(documentId)).documentTypeId;
+    const form = new FormData();
+    form.set('requestId', requestId);
+    form.set('file', file, file.name);
+    return apiClient.postForm<Attachment>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments/stream`, form);
+  },
   replaceAttachment: (attachmentId: string, attachment: AttachmentUpload) =>
     apiClient.put<Attachment>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`, { attachments: [attachment], requestId: crypto.randomUUID() }),
+  replaceFile: (attachmentId: string, file: File, requestId: string = crypto.randomUUID()) => {
+    const form = new FormData();
+    form.set('requestId', requestId);
+    form.set('file', file, file.name);
+    return apiClient.putForm<Attachment>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}/stream`, form);
+  },
   deleteAttachment: (attachmentId: string) =>
     apiClient.delete<void>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}?requestId=${crypto.randomUUID()}`),
   getAttachmentVersions: (attachmentId: string) =>

@@ -42,10 +42,9 @@ import { DocumentStatusChip } from '../components/DocumentStatusChip';
 import { AttachmentDocumentFilesList } from '../features/documents/components/DocumentFilesList';
 import { displayAttribute, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
 import { documentsApi } from '../api/documents';
-import { clearCurrentDocument, completeDocumentApproval, deleteDocumentAttachment, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, replaceDocumentAttachment, updateDocument, uploadDocumentAttachments } from '../store/documentsSlice';
+import { clearCurrentDocument, completeDocumentApproval, deleteDocumentAttachment, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, replaceDocumentFile, updateDocument, uploadDocumentFiles } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { AttributeValue, Attachment, DocumentRecord, DocumentVersion, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
-import { fileToAttachmentUpload } from '../utils/file';
 import { formatDateTime } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
@@ -292,8 +291,7 @@ export function DocumentDetailPage() {
 
 		setActionError(null);
 		try {
-			const attachments = await Promise.all(files.map(fileToAttachmentUpload));
-			await dispatch(uploadDocumentAttachments({ documentId: document.id, attachments })).unwrap();
+			await dispatch(uploadDocumentFiles({ documentId: document.id, files })).unwrap();
 		} catch (uploadError) {
 			setActionError(uploadError instanceof Error ? uploadError.message : String(uploadError));
 		}
@@ -308,10 +306,10 @@ export function DocumentDetailPage() {
 
 		setActionError(null);
 		try {
-			await dispatch(replaceDocumentAttachment({
+			await dispatch(replaceDocumentFile({
 				documentId: document.id,
 				attachmentId: attachment.id,
-				attachment: await fileToAttachmentUpload(file),
+				file,
 			})).unwrap();
 		} catch (replaceError) {
 			setActionError(replaceError instanceof Error ? replaceError.message : String(replaceError));
