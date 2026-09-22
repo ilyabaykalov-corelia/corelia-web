@@ -11,6 +11,7 @@ const { validateDocumentAttributes, validateDocumentField, displayAttribute } = 
 const { applyInputMask } = await server.ssrLoadModule('/src/features/documents/utils/inputMask.ts');
 const { DocumentFields } = await server.ssrLoadModule('/src/features/documents/components/DocumentFields.tsx');
 const { documentsApi } = await server.ssrLoadModule('/src/api/documents.ts');
+const { formatDateTime } = await server.ssrLoadModule('/src/utils/format.ts');
 const catalog = async name => {
   const base = new URL(`../../corelia-system-tests/src/test/resources/customers/${name}/`, import.meta.url);
   const entities = await Promise.all((await readdir(new URL('data-model/entities/', base))).map(async file => JSON.parse(await readFile(new URL(`data-model/entities/${file}`, base), 'utf8'))));
@@ -83,5 +84,22 @@ test('API preserves arbitrary attributes and command concurrency metadata', asyn
     assert.deepEqual(calls[1].body, { attributes: document.attributes, expectedVersion: 1, changeToken: 'old', requestId: 'update-key' });
     await documentsApi.completeApproval('doc', { actionCode: 'CUSTOM_ACTION' });
     assert.ok(calls.some(call => call.url.endsWith('/documents/CUSTOM/doc/actions/CUSTOM_ACTION') && call.method === 'POST'));
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test('detail data keeps configured type title and temporal fields', async () => {
+  const oldFetch = globalThis.fetch;
+  const document = {
+    id: 'pds-1', typeCode: 'PDS_CONTRACT', typeName: 'Договор ПДС', status: 'DRAFT', statusLabel: 'Черновик',
+    createdAt: '2026-09-22T10:15:20Z', versionCreatedAt: '2026-09-22T10:15:21Z',
+    attachments: [{ id: 'attachment-1', documentId: 'pds-1', fileName: 'contract.pdf', contentType: 'application/pdf', size: 1, uploadedAt: '2026-09-22T10:15:22Z' }],
+  };
+  globalThis.fetch = async () => new Response(JSON.stringify(document), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  try {
+    const detail = await documentsApi.getById('pds-1', 'PDS_CONTRACT');
+    assert.equal(detail.documentType, 'Договор ПДС');
+    for (const value of [detail.createdAt, detail.versionCreatedAt, detail.attachments[0].uploadedAt]) {
+      assert.notEqual(formatDateTime(value), '—');
+    }
   } finally { globalThis.fetch = oldFetch; }
 });
