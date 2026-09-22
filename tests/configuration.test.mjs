@@ -10,6 +10,7 @@ after(() => server.close());
 const { validateDocumentAttributes, validateDocumentField, displayAttribute } = await server.ssrLoadModule('/src/features/documents/utils/documentValidation.ts');
 const { applyInputMask } = await server.ssrLoadModule('/src/features/documents/utils/inputMask.ts');
 const { DocumentFields } = await server.ssrLoadModule('/src/features/documents/components/DocumentFields.tsx');
+const { AttachmentDocumentFilesList } = await server.ssrLoadModule('/src/features/documents/components/DocumentFilesList.tsx');
 const { documentsApi } = await server.ssrLoadModule('/src/api/documents.ts');
 const { formatDateTime } = await server.ssrLoadModule('/src/utils/format.ts');
 const catalog = async name => {
@@ -102,4 +103,14 @@ test('detail data keeps configured type title and temporal fields', async () => 
       assert.notEqual(formatDateTime(value), '—');
     }
   } finally { globalThis.fetch = oldFetch; }
+});
+
+test('attachment list renders a known uploadedAt value', () => {
+  const uploadedAt = '2026-09-22T10:15:22Z';
+  const html = renderToStaticMarkup(React.createElement(AttachmentDocumentFilesList, {
+    attachments: [{ id: 'attachment-1', documentId: 'pds-1', fileName: 'contract.pdf', contentType: 'application/pdf', size: 1, uploadedAt, version: 1 }],
+    onPreview() {}, onDownload() {},
+  }));
+  assert.ok(html.includes(formatDateTime(uploadedAt)));
+  assert.ok(!html.includes('• — •'));
 });
