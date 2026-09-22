@@ -251,7 +251,7 @@ export function DocumentCreatePage() {
 
         {activeStep === 1 && !selectedDocumentType?.attachments.enabled && <Alert severity="info">Для этого вида вложения отключены</Alert>}
         {activeStep === 1 && selectedDocumentType?.attachments.enabled && (
-          <SectionPanel title={initialRequired ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
+          <SectionPanel title={"Вложения"} count={files.length}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: files.length > 0 ? 'minmax(0, 1.15fr) minmax(360px, .85fr)' : '1fr' }, gap: 2 }}>
               <Box>
                 <Box
@@ -297,7 +297,7 @@ export function DocumentCreatePage() {
               <SummaryRow label="Вид документа" value={selectedDocumentType?.name ?? 'Вид не выбран'} />
               {selectedDocumentType?.ui.fields.map(name => <SummaryRow key={name} label={selectedDocumentType.schema.properties[name].title || name} value={displayAttribute(form.attributes[name], selectedDocumentType.schema.properties[name])} />)}
             </SectionPanel>
-            <SectionPanel title={initialRequired ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
+            <SectionPanel title={"Вложения"} count={files.length}>
               {files.length > 0 ? <LocalDocumentFilesList files={files} onPreview={setPreviewFile} /> : <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center', fontSize: 12.5 }}>Вложения не добавлены</Typography>}
             </SectionPanel>
           </Box>
