@@ -163,6 +163,7 @@ export function DocumentDetailPage() {
 	if (!document) return null;
 
 	const definition = documentTypes.find(item => item.id === document.documentTypeId);
+	const documentTypeName = definition?.name || document.documentType;
 	const processSteps: ProcessStep[] = [{ title: document.documentStatus, detail: document.workflow?.executor?.taskTitle || 'Состояние документа', state: document.workflowCompleted ? 'done' : 'active' }];
 	const actionMenuOpen = Boolean(actionAnchorEl);
 	const availableActions = document.workflow?.availableActions ?? [];
@@ -355,19 +356,19 @@ export function DocumentDetailPage() {
 			{versionLoading && <Alert severity="info">Загрузка версии…</Alert>}
 			<Breadcrumbs separator="›" sx={ { fontSize: 12.5 } }>
 				<Link component={ RouterLink } to="/" underline="hover" color="secondary.main">Документы</Link>
-				<Typography color="text.primary" sx={ { fontSize: 12.5 } }>{ document.documentType } { document.id }</Typography>
+				<Typography color="text.primary" sx={ { fontSize: 12.5 } }>{ documentTypeName } { document.id }</Typography>
 			</Breadcrumbs>
 
 			<Stack direction={ { xs: 'column', lg: 'row' } } spacing={ 1.5 } sx={ { alignItems: { lg: 'center' }, justifyContent: 'space-between' } }>
 				<Stack direction={ { xs: 'column', sm: 'row' } } spacing={ 1.5 } sx={ { alignItems: { xs: 'flex-start', sm: 'center' } } }>
-					<Typography variant="h4">{ document.documentType } { document.id }</Typography>
+					<Typography variant="h4">{ documentTypeName } { document.id }</Typography>
 					<DocumentStatusChip status={ document.documentStatus }/>
 					<TextField select size="small" label="Версия документа" value={ selectedVersion ?? 'current' }
 						disabled={ editing || saving || versionLoading } sx={{ minWidth: 220 }}
 						onChange={event => { setHistoricalDocument(null); setSelectedVersion(event.target.value === 'current' ? null : Number(event.target.value)); if (event.target.value === 'current' && id) void dispatch(fetchDocumentById(id)); }}>
 						<MenuItem value="current">Версия {currentDocument?.version ?? 1} · текущая</MenuItem>
 						{documentVersions.filter(v => !v.current).map(v => <MenuItem key={v.version} value={v.version}>
-							Версия {v.version} · {v.createdBy} · {new Date(v.createdAt + (/[Z+]/.test(v.createdAt) ? '' : 'Z')).toLocaleString('ru-RU')}
+							Версия {v.version} · {v.createdBy} · {formatDateTime(v.createdAt)}
 						</MenuItem>)}
 					</TextField>
 				</Stack>
@@ -448,7 +449,7 @@ export function DocumentDetailPage() {
 							</Stack>
 						) : (
 							<>
-								<AttributeRow label="Вид документа">{ document.documentType }</AttributeRow>
+								<AttributeRow label="Вид документа">{ documentTypeName }</AttributeRow>
                                 {(definition?.ui.fields ?? Object.keys(document.attributes)).map(name => <AttributeRow key={name} label={definition?.schema.properties[name]?.title || name}>{displayAttribute(document.attributes[name], definition?.schema.properties[name])}</AttributeRow>)}
 								<AttributeRow label="Дата создания">{ document.createdAt ? formatDateTime(document.createdAt) : undefined }</AttributeRow>
 								<AttributeRow label="Кто создал">{ document.createdBy }</AttributeRow>

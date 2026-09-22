@@ -24,7 +24,7 @@ export interface DocumentType {
   id: string;
   name: string;
   schema: { type: 'object'; properties: Record<string, AttributeDefinition>; required?: string[] };
-  ui: { fields: string[]; columns: string[]; searchFields: string[]; sortFields: string[]; dateField?: string };
+  ui: { fields: string[]; columns: string[]; searchFields: string[]; sortFields: string[]; dateField?: string; masks?: Record<string, string> };
   statuses: Record<string, string>;
   initialAttachmentRequired: boolean;
   attachments: { enabled: boolean; initialRequired: boolean; maxCount: number; maxSizeBytes: number; allowedExtensions: string[] };

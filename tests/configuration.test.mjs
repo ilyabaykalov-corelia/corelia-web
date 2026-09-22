@@ -1,18 +1,24 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { createServer } from 'vite';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 const server = await createServer({ server: { middlewareMode: true, watch: null, hmr: false, ws: false }, appType: 'custom' });
 after(() => server.close());
-const { validateDocumentAttributes, displayAttribute } = await server.ssrLoadModule('/src/features/documents/utils/documentValidation.ts');
+const { validateDocumentAttributes, validateDocumentField, displayAttribute } = await server.ssrLoadModule('/src/features/documents/utils/documentValidation.ts');
+const { applyInputMask } = await server.ssrLoadModule('/src/features/documents/utils/inputMask.ts');
 const { DocumentFields } = await server.ssrLoadModule('/src/features/documents/components/DocumentFields.tsx');
 const { documentsApi } = await server.ssrLoadModule('/src/api/documents.ts');
 const catalog = async name => {
-  const source = JSON.parse(await readFile(new URL(`../../corelia-system-tests/src/test/resources/customers/${name}/configuration.json`, import.meta.url), 'utf8'));
-  return source.documentTypes.map(type => ({ ...type, name: type.title, statuses: type.presentation.statuses, initialAttachmentRequired: type.attachments.initialRequired }));
+  const base = new URL(`../../corelia-system-tests/src/test/resources/customers/${name}/`, import.meta.url);
+  const entities = await Promise.all((await readdir(new URL('data-model/entities/', base))).map(async file => JSON.parse(await readFile(new URL(`data-model/entities/${file}`, base), 'utf8'))));
+  const ui = await Promise.all((await readdir(new URL('ui/', base))).map(async file => JSON.parse(await readFile(new URL(`ui/${file}`, base), 'utf8'))));
+  return entities.map(type => {
+    const fragment = ui.find(item => item.id === type.id);
+    return { ...type, ui: fragment.ui, name: type.title, statuses: type.presentation.statuses, initialAttachmentRequired: type.attachments.initialRequired };
+  });
 };
 
 test('one form renderer accepts two independently configured catalogs', async () => {
@@ -40,6 +46,24 @@ test('schema rules handle calendar dates, unicode length, integers and enums', (
   for (const [field, value] of [['date', '2026-02-30'], ['count', 1.5], ['count', 4], ['label', '😀😀'], ['option', 'c']]) {
     assert.notEqual(validateDocumentAttributes({ ...payload, attributes: { ...payload.attributes, [field]: value } }, type), null);
   }
+});
+
+test('configured masks normalize typing and paste before frontend validation', () => {
+  const type = { id: 'PDS_CONTRACT', ui: { masks: { snils: '000-000-000 00' } }, schema: { required: ['snils'], properties: {
+    snils: { type: 'string', pattern: '^\\d{3}-\\d{3}-\\d{3} \\d{2}$' },
+  } } };
+  assert.equal(applyInputMask('12345678900', type.ui.masks.snils), '123-456-789 00');
+  assert.equal(applyInputMask('123-456-789 00', type.ui.masks.snils), '123-456-789 00');
+  assert.match(validateDocumentField('snils', '1234567890', type), /формат/);
+  assert.equal(validateDocumentField('snils', '12345678900', type), null);
+  assert.equal(validateDocumentField('snils', '123-456-789 00', type), null);
+});
+
+test('field validation remains quiet until touched and is cleared on correction', () => {
+  const type = { id: 'TEST', schema: { required: ['value'], properties: { value: { type: 'string', minLength: 3 } } } };
+  assert.equal(validateDocumentField('value', undefined, type), 'Заполните поле «value»');
+  assert.match(validateDocumentField('value', 'x', type), /минимум/);
+  assert.equal(validateDocumentField('value', 'good', type), null);
 });
 
 test('API preserves arbitrary attributes and command concurrency metadata', async () => {
