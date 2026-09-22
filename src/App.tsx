@@ -1,4 +1,4 @@
-import { useEffect, type PropsWithChildren } from 'react';
+import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { authSessionChangedEvent, authUnauthorizedEvent, getStoredAuthSession } from './api/authStorage';
 import { initializeKeycloak } from './api/keycloak';
@@ -23,6 +23,8 @@ function ProtectedApp({ children }: PropsWithChildren) {
 
 export default function App() {
   const dispatch = useAppDispatch();
+  const [authInitialized, setAuthInitialized] = useState(false);
+  const initializationStarted = useRef(false);
 
   useEffect(() => {
     const handleUnauthorized = () => {
@@ -35,14 +37,21 @@ export default function App() {
 
     window.addEventListener(authUnauthorizedEvent, handleUnauthorized);
     window.addEventListener(authSessionChangedEvent, handleSessionChanged);
-    void initializeKeycloak().then((session) => {
-      if (session) dispatch(setSession(session));
-    }).catch(handleUnauthorized);
+    if (!initializationStarted.current) {
+      initializationStarted.current = true;
+      void initializeKeycloak().then((session) => {
+        if (session) dispatch(setSession(session));
+      }).catch(handleUnauthorized).finally(() => {
+        setAuthInitialized(true);
+      });
+    }
     return () => {
       window.removeEventListener(authUnauthorizedEvent, handleUnauthorized);
       window.removeEventListener(authSessionChangedEvent, handleSessionChanged);
     };
   }, [dispatch]);
+
+  if (!authInitialized) return null;
 
   return (
     <Routes>

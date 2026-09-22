@@ -38,7 +38,7 @@ export function LoginPage() {
 
   const submit = async () => {
     try {
-      await dispatch(loginUser()).unwrap();
+      await dispatch(loginUser(new URL(returnTo, window.location.origin).href)).unwrap();
     } catch {
       // Ошибка уже сохранена в auth slice и показана в Alert.
     }
