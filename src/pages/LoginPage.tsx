@@ -55,7 +55,7 @@ export function LoginPage() {
             </Box>
             <Box>
               <Typography variant="h4" sx={{ fontSize: 24 }}>Вход в систему</Typography>
-              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 12.5 }}>Авторизация через Platform V Keycloak</Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 12.5 }}>Авторизация через корпоративный SSO</Typography>
             </Box>
           </Stack>
 
