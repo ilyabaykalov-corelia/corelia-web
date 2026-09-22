@@ -12,7 +12,7 @@ import {
 } from '@mui/icons-material';
 import { DocumentFileIcon, getSupportedFileKind } from '../../../components/DocumentFileIcon';
 import type { Attachment } from '../../../types/document';
-import { formatDate, formatFileSize } from '../../../utils/format';
+import { formatDateTime, formatFileSize } from '../../../utils/format';
 
 const FileRow = styled(Stack)(({ theme }) => ({
   alignItems: 'center',
@@ -118,7 +118,7 @@ export function AttachmentDocumentFilesList({
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography noWrap sx={{ fontSize: 12 }}>{attachment.fileName}</Typography>
               <Typography noWrap color="text.secondary" sx={{ fontSize: 10.8 }}>
-                {formatFileSize(attachment.size)} &nbsp;•&nbsp; {formatDate(attachment.uploadedAt)} &nbsp;•&nbsp; (вер. {attachment.version ?? 1})
+                {formatFileSize(attachment.size)} &nbsp;•&nbsp; {formatDateTime(attachment.uploadedAt)} &nbsp;•&nbsp; (вер. {attachment.version ?? 1})
               </Typography>
             </Box>
             <Tooltip title="Просмотреть">

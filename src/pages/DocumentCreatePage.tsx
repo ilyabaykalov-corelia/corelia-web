@@ -29,7 +29,7 @@ import { SectionPanel } from '../components/common/SectionPanel';
 import { SummaryRow } from '../components/common/SummaryRow';
 import { FilePreviewDialog } from '../components/FilePreviewDialog';
 import { LocalDocumentFilesList } from '../features/documents/components/DocumentFilesList';
-import { displayAttribute, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
+import { displayAttribute, validateDocumentAttributes, validateDocumentField } from '../features/documents/utils/documentValidation';
 import { createDocument, fetchDocumentTypes, uploadDocumentFiles } from '../store/documentsSlice';
 import { documentsApi } from '../api/documents';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -57,6 +57,8 @@ export function DocumentCreatePage() {
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const availableDocumentTypes = documentTypes;
   const selectedDocumentType = availableDocumentTypes.find((item) => item.id === form.documentTypeId);
@@ -75,10 +77,29 @@ export function DocumentCreatePage() {
 
   const updateField = (field: string, value: AttributeValue) => {
     setForm(current => ({ ...current, attributes: { ...current.attributes, [field]: value } }));
+    if (touchedFields.has(field)) {
+      const error = validateDocumentField(field, value, selectedDocumentType);
+      setFieldErrors(current => { const next = { ...current }; if (error) next[field] = error; else delete next[field]; return next; });
+    }
     setValidationError(null);
   };
+  const touchField = (field: string) => {
+    setTouchedFields(current => new Set(current).add(field));
+    const error = validateDocumentField(field, form.attributes[field], selectedDocumentType);
+    setFieldErrors(current => { const next = { ...current }; if (error) next[field] = error; else delete next[field]; return next; });
+  };
+  const touchCurrentStep = () => {
+    if (!selectedDocumentType) return;
+    setTouchedFields(current => new Set([...current, ...selectedDocumentType.ui.fields]));
+    const errors: Record<string, string> = {};
+    for (const field of selectedDocumentType.ui.fields) {
+      const error = validateDocumentField(field, form.attributes[field], selectedDocumentType);
+      if (error) errors[field] = error;
+    }
+    setFieldErrors(errors);
+  };
   const selectType = (documentTypeId: string) => {
-    setForm({ documentTypeId, attributes: {} }); setFiles([]); setValidationError(null);
+    setForm({ documentTypeId, attributes: {} }); setFiles([]); setValidationError(null); setTouchedFields(new Set()); setFieldErrors({});
     creationRequestId.current = crypto.randomUUID();
   };
 
@@ -114,6 +135,7 @@ export function DocumentCreatePage() {
   const moveNext = () => {
     const stepError = activeStep === 0 ? validateDocumentAttributes(form, selectedDocumentType) : initialRequired && files.length === 0 ? 'Для создания документа добавьте вложение' : null;
     if (stepError) {
+      if (activeStep === 0) touchCurrentStep();
       setValidationError(stepError);
       return;
     }
@@ -222,7 +244,7 @@ export function DocumentCreatePage() {
                   {availableDocumentTypes.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
                 </TextField>
               </FormField>
-              {selectedDocumentType && <DocumentFields definition={selectedDocumentType} value={form.attributes} onChange={updateField} disabled={saving} />}
+              {selectedDocumentType && <DocumentFields definition={selectedDocumentType} value={form.attributes} onChange={updateField} onBlur={touchField} errors={fieldErrors} disabled={saving} />}
             </Box>
           </SectionPanel>
         )}

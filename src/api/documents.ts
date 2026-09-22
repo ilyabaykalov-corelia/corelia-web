@@ -74,7 +74,7 @@ const downloadAttachment = async (attachment: Attachment) => {
   const blob = await response.blob();
   return new File([blob], attachment.fileName, {
     type: attachment.contentType || blob.type,
-    lastModified: new Date(attachment.uploadedAt).getTime() || Date.now(),
+    lastModified: new Date(attachment.uploadedAt).getTime() || 0,
   });
 };
 
