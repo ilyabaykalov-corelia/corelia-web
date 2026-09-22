@@ -27,7 +27,7 @@ export interface DocumentType {
   ui: { fields: string[]; columns: string[]; searchFields: string[]; sortFields: string[]; dateField?: string };
   statuses: Record<string, string>;
   initialAttachmentRequired: boolean;
-  attachments: { enabled: boolean; initialRequired: boolean; maxCount: number };
+  attachments: { enabled: boolean; initialRequired: boolean; maxCount: number; maxSizeBytes: number; allowedExtensions: string[] };
 }
 
 export interface Attachment {
