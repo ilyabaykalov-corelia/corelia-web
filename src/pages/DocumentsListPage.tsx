@@ -66,7 +66,7 @@ export function DocumentsListPage() {
           <TableCell><Link component={RouterLink} to={`/documents/${encodeURIComponent(document.id)}`}>{document.documentType}</Link><Typography variant="caption" sx={{ display: 'block' }}>{document.id}</Typography></TableCell>
           {columns.map(name => <TableCell key={name}>{displayAttribute(document.attributes[name], type?.schema.properties[name])}</TableCell>)}
           {!displayedDefinition && <TableCell>{(type?.ui.columns ?? Object.keys(document.attributes)).map(name => <Typography variant="body2" key={name}>{type?.schema.properties[name]?.title || name}: {displayAttribute(document.attributes[name], type?.schema.properties[name])}</Typography>)}</TableCell>}
-          <TableCell><DocumentStatusChip status={document.documentStatus} /></TableCell>
+          <TableCell><DocumentStatusChip status={document.status} label={document.documentStatus} /></TableCell>
         </TableRow>;
       })}</TableBody></Table></TableContainer>
       {!loading && items.length === 0 && <Typography sx={{ p: 3 }}>Документы не найдены</Typography>}
