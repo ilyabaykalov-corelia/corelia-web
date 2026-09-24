@@ -44,7 +44,7 @@ import { displayAttribute, validateDocumentAttributes } from '../features/docume
 import { documentsApi } from '../api/documents';
 import { clearCurrentDocument, completeDocumentApproval, deleteDocumentAttachment, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, replaceDocumentFile, updateDocument, uploadDocumentFiles } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { AttributeValue, Attachment, DocumentRecord, DocumentVersion, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
+import type { AttributeValue, Attachment, DocumentHistoryEntry, DocumentRecord, DocumentVersion, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
 import { formatDateTime } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
@@ -81,12 +81,27 @@ function StepIcon({ state }: { state: ProcessStepState }) {
 	return <CheckCircleIcon sx={ { color: state === 'active' ? '#245c9f' : 'primary.main', fontSize: 18 } }/>;
 }
 
+function historyDescription(entry: DocumentHistoryEntry) {
+	if (entry.action === 'DOCUMENT_CREATED') return 'Создан документ';
+	if (entry.action === 'ATTRIBUTE_SET') return `Заполнен атрибут «${entry.fieldLabel ?? entry.field}»`;
+	if (entry.action === 'ATTRIBUTE_CLEARED') return `Очищен атрибут «${entry.fieldLabel ?? entry.field}»`;
+	if (entry.action === 'ATTRIBUTE_CHANGED') return `Изменён атрибут «${entry.fieldLabel ?? entry.field}»`;
+	if (entry.action === 'ATTACHMENT_ADDED') return 'Загружено вложение';
+	if (entry.action === 'ATTACHMENT_REPLACED') return 'Заменено вложение';
+	return 'Удалено вложение';
+}
+function valueText(value: AttributeValue | undefined) { return value === null || value === undefined || value === '' ? '—' : String(value); }
+
 export function DocumentDetailPage() {
 	const { id } = useParams();
 	const dispatch = useAppDispatch();
 	const { currentItem: currentDocument, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
 	const [ historicalDocument, setHistoricalDocument ] = useState<DocumentRecord | null>(null);
 	const [ documentVersions, setDocumentVersions ] = useState<DocumentVersion[]>([]);
+	const [ history, setHistory ] = useState<DocumentHistoryEntry[]>([]);
+	const [ historyLoading, setHistoryLoading ] = useState(false);
+	const [ historyError, setHistoryError ] = useState<string | null>(null);
+	const [ selectedTab, setSelectedTab ] = useState(0);
 	const [ selectedVersion, setSelectedVersion ] = useState<number | null>(null);
 	const [ versionLoading, setVersionLoading ] = useState(false);
 	const [ capabilities, setCapabilities ] = useState<string[]>([]);
@@ -130,6 +145,14 @@ export function DocumentDetailPage() {
 		void documentsApi.getVersions(id).then(result => {
 			if (active) setDocumentVersions(result.items);
 		}).catch(error => { if (active) setActionError(String(error)); });
+		return () => { active = false; };
+	}, [id, currentDocument?.id, currentDocument?.version, currentDocument?.changeToken]);
+
+	useEffect(() => {
+		if (!id || currentDocument?.id !== id) return;
+		let active = true; setHistoryLoading(true); setHistoryError(null);
+		void documentsApi.getHistory(id, currentDocument.documentTypeId).then(result => { if (active) setHistory(result.items); })
+			.catch(error => { if (active) setHistoryError(String(error)); }).finally(() => { if (active) setHistoryLoading(false); });
 		return () => { active = false; };
 	}, [id, currentDocument?.id, currentDocument?.version, currentDocument?.changeToken]);
 
@@ -426,7 +449,7 @@ export function DocumentDetailPage() {
 				</Stack>
 			</Stack>
 
-			<Tabs value={ 0 } variant="scrollable" scrollButtons={ false } sx={ {
+			<Tabs value={ selectedTab } onChange={ (_, value) => setSelectedTab(value) } variant="scrollable" scrollButtons={ false } sx={ {
 				minHeight: 42, borderBottom: 1, borderColor: 'divider', mx: -2.5, px: 2.5, '& .MuiTab-root': { minHeight: 42, minWidth: 0, px: 1.25, mr: 2, fontSize: 12.5, color: 'text.primary' },
 			} }>
 				<Tab label="Общее"/>
@@ -437,7 +460,19 @@ export function DocumentDetailPage() {
 
 			{ (error || actionError || previewError) && <Alert severity="error">{ actionError || previewError || error }</Alert> }
 
-			<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
+			{ selectedTab === 2 && <SectionPanel title="История изменений">
+				{ historyLoading && <Stack direction="row" spacing={ 1 } sx={ { alignItems: 'center' } }><CircularProgress size={ 18 }/><Typography>Загрузка истории...</Typography></Stack> }
+				{ historyError && <Alert severity="error">Не удалось загрузить историю: { historyError }</Alert> }
+				{ !historyLoading && !historyError && history.length === 0 && <Typography color="text.secondary">История изменений отсутствует</Typography> }
+				{ !historyLoading && !historyError && <Stack spacing={ 1.25 }>{ history.map(entry => <Paper key={ entry.id } variant="outlined" sx={ { p: 1.25 } }>
+					<Typography sx={ { fontSize: 12.5, fontWeight: 600 } }>{ formatDateTime(entry.timestamp) }</Typography><Typography color="text.secondary" sx={ { fontSize: 12 } }>{ entry.userLogin }</Typography>
+					<Typography sx={ { mt: 0.75, fontSize: 12.5 } }>{ historyDescription(entry) }</Typography>
+					{ entry.action.startsWith('ATTRIBUTE_') && <Typography color="text.secondary" sx={ { fontSize: 12 } }>{ entry.action === 'ATTRIBUTE_SET' ? `Новое значение: ${valueText(entry.newValue)}` : entry.action === 'ATTRIBUTE_CLEARED' ? `Было: ${valueText(entry.oldValue)}` : `${valueText(entry.oldValue)} → ${valueText(entry.newValue)}` }</Typography> }
+					{ entry.attachment && <Typography color="text.secondary" sx={ { fontSize: 12 } }>{ entry.attachment.oldFileName && `Было: ${entry.attachment.oldFileName}` }{ entry.attachment.oldFileName && entry.attachment.newFileName && ' → ' }{ entry.attachment.newFileName && (entry.attachment.oldFileName ? `Стало: ${entry.attachment.newFileName}` : entry.attachment.newFileName) }</Typography> }
+				</Paper>) }</Stack> }
+			</SectionPanel> }
+
+			{ selectedTab !== 2 && <Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
 				<Stack spacing={ 2 } sx={ { minWidth: 0 } }>
 					<SectionPanel title="Атрибуты карточки">
 						{ editing && form ? (
@@ -562,7 +597,7 @@ export function DocumentDetailPage() {
             ))}
           </SectionPanel> */ }
 				</Stack>
-			</Box>
+			</Box> }
 			<Dialog open={ Boolean(versionsAttachment) } onClose={ closePreviousVersions } fullWidth maxWidth="sm">
 				<DialogTitle sx={ { fontSize: 16, fontWeight: 600, pr: 6 } }>
 					Прошлые версии{ versionsAttachment ? `: ${ versionsAttachment.fileName }` : '' }
