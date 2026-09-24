@@ -15,6 +15,7 @@ import type {
   UpdateDocumentRequest,
   DocumentWorkflow,
   DocumentVersion,
+  DocumentHistoryEntry,
 } from '../types/document';
 
 const apiRoot = '/api/core/v1';
@@ -105,6 +106,10 @@ export const documentsApi = {
   getVersions: async (id: string, type?: string) => {
     const code = type ?? (await documentsApi.getById(id)).documentTypeId;
     return apiClient.get<{ items: DocumentVersion[] }>(`${apiRoot}/documents/${encodeURIComponent(code)}/${encodeURIComponent(id)}/versions`);
+  },
+  getHistory: async (id: string, type?: string) => {
+    const code = type ?? (await documentsApi.getById(id)).documentTypeId;
+    return apiClient.get<{ items: DocumentHistoryEntry[] }>(`${apiRoot}/documents/${encodeURIComponent(code)}/${encodeURIComponent(id)}/history`);
   },
   getVersion: async (id: string, version: number, type?: string): Promise<DocumentRecord> => {
     const code = type ?? (await documentsApi.getById(id)).documentTypeId;

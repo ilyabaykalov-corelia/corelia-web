@@ -49,6 +49,18 @@ export interface DocumentVersion {
   closedAt?: string;
   current: boolean;
 }
+export type DocumentHistoryAction = 'DOCUMENT_CREATED' | 'ATTRIBUTE_SET' | 'ATTRIBUTE_CHANGED' | 'ATTRIBUTE_CLEARED' | 'ATTACHMENT_ADDED' | 'ATTACHMENT_REPLACED' | 'ATTACHMENT_DELETED';
+export interface DocumentHistoryEntry {
+  id: string;
+  timestamp: string;
+  userLogin: string;
+  action: DocumentHistoryAction;
+  field?: string;
+  fieldLabel?: string;
+  oldValue?: AttributeValue;
+  newValue?: AttributeValue;
+  attachment?: { attachmentId: string; oldFileName?: string; newFileName?: string };
+}
 
 export interface DocumentRecord {
   version?: number;
