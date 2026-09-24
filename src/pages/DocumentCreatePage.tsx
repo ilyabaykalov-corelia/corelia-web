@@ -33,9 +33,17 @@ import { displayAttribute, validateDocumentAttributes, validateDocumentField } f
 import { createDocument, fetchDocumentTypes, uploadDocumentFiles } from '../store/documentsSlice';
 import { documentsApi } from '../api/documents';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { CreateDocumentRequest, AttributeValue } from '../types/document';
+import type { CreateDocumentRequest, AttributeValue, DocumentAttributes, DocumentType } from '../types/document';
 
 const initialForm: CreateDocumentRequest = { documentTypeId: '', attributes: {} };
+
+const currentDate = () => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+const initialAttributes = (definition?: DocumentType): DocumentAttributes => Object.fromEntries(
+  Object.entries(definition?.ui.initialValues ?? {}).map(([name, value]) => [name, value === 'now' ? currentDate() : value]),
+);
 
 const steps = ['Атрибуты документа', 'Вложения', 'Подтверждение'];
 const fieldProps = { fullWidth: true, size: 'small' as const };
@@ -72,7 +80,7 @@ export function DocumentCreatePage() {
   useEffect(() => {
     if (documentTypes.length === 0) return;
     if (documentTypes.some((item) => item.id === form.documentTypeId)) return;
-    setForm((current) => ({ ...current, documentTypeId: documentTypes[0].id }));
+    setForm({ documentTypeId: documentTypes[0].id, attributes: initialAttributes(documentTypes[0]) });
   }, [documentTypes, form.documentTypeId]);
 
   const updateField = (field: string, value: AttributeValue) => {
@@ -99,7 +107,7 @@ export function DocumentCreatePage() {
     setFieldErrors(errors);
   };
   const selectType = (documentTypeId: string) => {
-    setForm({ documentTypeId, attributes: {} }); setFiles([]); setValidationError(null); setTouchedFields(new Set()); setFieldErrors({});
+    setForm({ documentTypeId, attributes: initialAttributes(documentTypes.find(type => type.id === documentTypeId)) }); setFiles([]); setValidationError(null); setTouchedFields(new Set()); setFieldErrors({});
     creationRequestId.current = crypto.randomUUID();
   };
 

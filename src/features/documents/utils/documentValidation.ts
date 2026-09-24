@@ -28,8 +28,8 @@ export function validateDocumentField(name: string, source: AttributeValue | und
   if (field.type === 'boolean' && typeof source !== 'boolean') return `Укажите значение «${label}»`;
   if (field.type === 'number' || field.type === 'integer') {
     if (typeof source !== 'number' || !Number.isFinite(source) || (field.type === 'integer' && !Number.isInteger(source))) return `Укажите корректное число «${label}»`;
-    if (field.minimum !== undefined && source < field.minimum) return `«${label}»: минимум ${field.minimum}`;
-    if (field.maximum !== undefined && source > field.maximum) return `«${label}»: максимум ${field.maximum}`;
+    if (field.min !== undefined && source < field.min) return `«${label}»: минимум ${field.min}`;
+    if (field.max !== undefined && source > field.max) return `«${label}»: максимум ${field.max}`;
   }
   if (field.type !== 'string' || typeof source !== 'string') return field.type === 'string' ? `Укажите текст «${label}»` : null;
   const value = validationValue(source, definition.ui?.masks?.[name]);

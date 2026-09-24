@@ -24,7 +24,7 @@ export function DocumentFields({ definition, value, onChange, onBlur, errors = {
       </TextField> : <TextField fullWidth size="small" disabled={disabled} value={current ?? ''}
         type={field.format === 'date' ? 'date' : numeric ? 'number' : 'text'}
         error={Boolean(errors[name])} helperText={errors[name] ?? field.description}
-        slotProps={{ htmlInput: { 'aria-label': label, min: field.minimum, max: field.maximum, step: field.type === 'integer' ? 1 : 'any' } }}
+        slotProps={{ htmlInput: { 'aria-label': label, placeholder: mask, min: field.min, max: field.max, step: field.type === 'integer' ? 1 : 'any' } }}
         onBlur={() => onBlur?.(name)}
         onChange={event => onChange(name, numeric && event.target.value !== '' ? Number(event.target.value) : applyInputMask(event.target.value, mask))} />}
     </FormField>;

@@ -141,7 +141,7 @@ export function TasksListPage({ queue }: { queue: TaskQueue }) {
     setError(null);
 
     try {
-      await tasksApi.action(task.id, action.status ? { approvalStatus: action.status } : { actionCode: action.code });
+      await tasksApi.action(task.id, action.status ? { status: action.status } : { actionCode: action.code });
       setItems((current) => current.filter((item) => item.id !== task.id));
       if (queue === 'AVAILABLE') {
         window.dispatchEvent(new CustomEvent(taskCountersChangedEvent, {

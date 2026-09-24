@@ -361,7 +361,7 @@ export function DocumentDetailPage() {
 
 			<Stack direction={ { xs: 'column', lg: 'row' } } spacing={ 1.5 } sx={ { alignItems: { lg: 'center' }, justifyContent: 'space-between' } }>
 				<Stack direction={ { xs: 'column', sm: 'row' } } spacing={ 1.5 } sx={ { alignItems: { xs: 'flex-start', sm: 'center' } } }>
-					<Typography variant="h4">{ documentTypeName } { document.id }</Typography>
+					<Typography variant="h4">{ documentTypeName } </Typography>
 					<DocumentStatusChip status={ document.status } label={ document.documentStatus }/>
 					<TextField select size="small" label="Версия документа" value={ selectedVersion ?? 'current' }
 						disabled={ editing || saving || versionLoading } sx={{ minWidth: 220 }}
