@@ -18,6 +18,8 @@ export function DocumentsListPage() {
   useEffect(() => { setDraft(filters); void dispatch(fetchDocuments({ ...filters, limit: filters.limit ?? 25 })); }, [dispatch, filters]);
   const definition = documentTypes.find(type => type.id === draft.documentTypeId);
   const displayedDefinition = documentTypes.find(type => type.id === filters.documentTypeId);
+  const searchFields = definition?.ui.searchFields.map(name => definition.schema.properties[name].title || name).join(', ') ?? '';
+  const searchPlaceholder = searchFields ? `Поиск по реквизитам: ${searchFields}` : 'Поиск по реквизитам';
   const columns = displayedDefinition?.ui.columns ?? [];
   const statuses = Object.entries(definition?.statuses ?? Object.assign({}, ...documentTypes.map(type => type.statuses))) as [string, string][];
   const pageSize = [10, 25, 50, 100].includes(filters.limit ?? 25) ? (filters.limit ?? 25) : 25;
@@ -38,8 +40,7 @@ export function DocumentsListPage() {
         <TextField select label="Вид документа" size="small" value={draft.documentTypeId ?? ''} sx={{ minWidth: 220 }} onChange={event => setDraft({ documentTypeId: event.target.value, query: draft.query })}>
           <MenuItem value="">Все виды</MenuItem>{documentTypes.map(type => <MenuItem key={type.id} value={type.id}>{type.name}</MenuItem>)}
         </TextField>
-        <TextField size="small" label="Поиск по реквизитам" value={draft.query ?? ''} onChange={event => setDraft({ ...draft, query: event.target.value })}
-          helperText={definition?.ui.searchFields.map(name => definition.schema.properties[name].title || name).join(', ')} />
+        <TextField size="small" placeholder={searchPlaceholder} value={draft.query ?? ''} sx={{ flex: '1 1 280px' }} onChange={event => setDraft({ ...draft, query: event.target.value })} />
         <TextField select label="Статус" size="small" sx={{ minWidth: 180 }} value={draft.status ?? ''} onChange={event => setDraft({ ...draft, status: event.target.value })}>
           <MenuItem value="">Все статусы</MenuItem>{statuses.map(([code, label]) => <MenuItem key={code} value={code}>{label}</MenuItem>)}
         </TextField>
@@ -66,7 +67,7 @@ export function DocumentsListPage() {
           <TableCell><Link component={RouterLink} to={`/documents/${encodeURIComponent(document.id)}`}>{document.documentType}</Link><Typography variant="caption" sx={{ display: 'block' }}>{document.id}</Typography></TableCell>
           {columns.map(name => <TableCell key={name}>{displayAttribute(document.attributes[name], type?.schema.properties[name])}</TableCell>)}
           {!displayedDefinition && <TableCell>{(type?.ui.columns ?? Object.keys(document.attributes)).map(name => <Typography variant="body2" key={name}>{type?.schema.properties[name]?.title || name}: {displayAttribute(document.attributes[name], type?.schema.properties[name])}</Typography>)}</TableCell>}
-          <TableCell><DocumentStatusChip status={document.documentStatus} /></TableCell>
+          <TableCell><DocumentStatusChip status={document.status} label={document.documentStatus} /></TableCell>
         </TableRow>;
       })}</TableBody></Table></TableContainer>
       {!loading && items.length === 0 && <Typography sx={{ p: 3 }}>Документы не найдены</Typography>}

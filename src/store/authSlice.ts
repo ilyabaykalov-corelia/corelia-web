@@ -21,7 +21,7 @@ const initialState: AuthState = {
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Неизвестная ошибка');
 
-export const loginUser = createAsyncThunk('auth/login', async () => loginWithKeycloak());
+export const loginUser = createAsyncThunk('auth/login', async (redirectUri: string) => loginWithKeycloak(redirectUri));
 
 export const logoutUser = createAsyncThunk('auth/logout', async (_, api) => {
   try {

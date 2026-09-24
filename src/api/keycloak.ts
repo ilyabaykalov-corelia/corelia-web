@@ -25,7 +25,7 @@ export const initializeKeycloak = async () => {
   if (fixture) { setStoredAuthSession(fixtureSession); return fixtureSession; }
   return (await keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false })) ? publish() : null;
 };
-export const loginWithKeycloak = () => fixture ? Promise.resolve() : keycloak.login({ redirectUri: window.location.href });
+export const loginWithKeycloak = (redirectUri: string) => fixture ? Promise.resolve() : keycloak.login({ redirectUri });
 export const refreshKeycloakToken = async () => {
   if (fixture) return fixtureSession;
   try { return (await keycloak.updateToken(30)) || keycloak.token ? publish() : null; }
