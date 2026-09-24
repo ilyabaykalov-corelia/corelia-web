@@ -8,7 +8,7 @@ export interface AttributeDefinition {
   type: 'string' | 'integer' | 'number' | 'boolean';
   title?: string; description?: string; format?: 'date';
   minLength?: number; maxLength?: number; pattern?: string;
-  minimum?: number; maximum?: number; enum?: AttributeValue[];
+  min?: number; max?: number; enum?: AttributeValue[];
 }
 export type DocumentActionTone = 'success' | 'warning' | 'error';
 
@@ -24,7 +24,7 @@ export interface DocumentType {
   id: string;
   name: string;
   schema: { type: 'object'; properties: Record<string, AttributeDefinition>; required?: string[] };
-  ui: { fields: string[]; columns: string[]; searchFields: string[]; sortFields: string[]; dateField?: string; masks?: Record<string, string> };
+  ui: { fields: string[]; columns: string[]; searchFields: string[]; sortFields: string[]; dateField?: string; masks?: Record<string, string>; initialValues?: Record<string, AttributeValue> };
   statuses: Record<string, string>;
   initialAttachmentRequired: boolean;
   attachments: { enabled: boolean; initialRequired: boolean; maxCount: number; maxSizeBytes: number; allowedExtensions: string[] };
@@ -120,7 +120,7 @@ export interface UpdateDocumentRequest extends CreateDocumentRequest {
 
 export interface DocumentApprovalRequest {
   actionCode?: DocumentWorkflowActionCode;
-  approvalStatus?: ApprovalDecision;
+  status?: ApprovalDecision;
   parameters?: Record<string, unknown>;
 }
 

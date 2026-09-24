@@ -40,7 +40,7 @@ test('one form renderer accepts two independently configured catalogs', async ()
 
 test('schema rules handle calendar dates, unicode length, integers and enums', () => {
   const type = { id: 'TEST', schema: { required: ['date', 'count'], properties: {
-    date: { type: 'string', format: 'date' }, count: { type: 'integer', minimum: 0, maximum: 3 },
+    date: { type: 'string', format: 'date' }, count: { type: 'integer', min: 0, max: 3 },
     label: { type: 'string', maxLength: 1 }, option: { type: 'string', enum: ['a', 'b'] },
   } } };
   const payload = { documentTypeId: 'TEST', attributes: { date: '2024-02-29', count: 0, label: '😀', option: 'a' } };
@@ -51,11 +51,13 @@ test('schema rules handle calendar dates, unicode length, integers and enums', (
 });
 
 test('configured masks normalize typing and paste before frontend validation', () => {
-  const type = { id: 'PDS_CONTRACT', ui: { masks: { snils: '000-000-000 00' } }, schema: { required: ['snils'], properties: {
+  const type = { id: 'PDS_CONTRACT', ui: { fields: ['snils'], masks: { snils: '000-000-000 00' } }, schema: { required: ['snils'], properties: {
     snils: { type: 'string', pattern: '^\\d{3}-\\d{3}-\\d{3} \\d{2}$' },
   } } };
   assert.equal(applyInputMask('12345678900', type.ui.masks.snils), '123-456-789 00');
   assert.equal(applyInputMask('123-456-789 00', type.ui.masks.snils), '123-456-789 00');
+  const html = renderToStaticMarkup(React.createElement(DocumentFields, { definition: type, value: {}, onChange() {} }));
+  assert.match(html, /placeholder="000-000-000 00"/);
   assert.match(validateDocumentField('snils', '1234567890', type), /формат/);
   assert.equal(validateDocumentField('snils', '12345678900', type), null);
   assert.equal(validateDocumentField('snils', '123-456-789 00', type), null);
