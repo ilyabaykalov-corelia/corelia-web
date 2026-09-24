@@ -38,7 +38,7 @@ export function LoginPage() {
 
   const submit = async () => {
     try {
-      await dispatch(loginUser()).unwrap();
+      await dispatch(loginUser(new URL(returnTo, window.location.origin).href)).unwrap();
     } catch {
       // Ошибка уже сохранена в auth slice и показана в Alert.
     }
@@ -55,7 +55,7 @@ export function LoginPage() {
             </Box>
             <Box>
               <Typography variant="h4" sx={{ fontSize: 24 }}>Вход в систему</Typography>
-              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 12.5 }}>Авторизация через Platform V Keycloak</Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 12.5 }}>Авторизация через корпоративный SSO</Typography>
             </Box>
           </Stack>
 

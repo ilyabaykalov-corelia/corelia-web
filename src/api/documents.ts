@@ -74,7 +74,7 @@ const downloadAttachment = async (attachment: Attachment) => {
   const blob = await response.blob();
   return new File([blob], attachment.fileName, {
     type: attachment.contentType || blob.type,
-    lastModified: new Date(attachment.uploadedAt).getTime() || Date.now(),
+    lastModified: new Date(attachment.uploadedAt).getTime() || 0,
   });
 };
 
@@ -130,7 +130,8 @@ export const documentsApi = {
   completeApproval: async (id: string, payload: DocumentApprovalRequest) => {
     if (!payload.actionCode) throw new Error('Действие не выбрано');
     const document = await documentsApi.getById(id);
-    return normalizeDocument(await apiClient.post<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(document.documentTypeId)}/${encodeURIComponent(id)}/actions/${encodeURIComponent(payload.actionCode)}`, {}));
+    await apiClient.post<void>(`${apiRoot}/documents/${encodeURIComponent(document.documentTypeId)}/${encodeURIComponent(id)}/actions/${encodeURIComponent(payload.actionCode)}`, {});
+    return documentsApi.getById(id);
   },
   uploadAttachments: async (documentId: string, attachments: AttachmentUpload[], requestId: string = crypto.randomUUID()): Promise<Attachment[]> => {
     const type = (await documentsApi.getById(documentId)).documentTypeId;

@@ -27,18 +27,23 @@ import { DocumentFields } from '../features/documents/components/DocumentFields'
 import { FormField } from '../components/common/FormField';
 import { SectionPanel } from '../components/common/SectionPanel';
 import { SummaryRow } from '../components/common/SummaryRow';
-import { getSupportedFileKind } from '../components/DocumentFileIcon';
 import { FilePreviewDialog } from '../components/FilePreviewDialog';
 import { LocalDocumentFilesList } from '../features/documents/components/DocumentFilesList';
-import { displayAttribute, validateDocumentAttributes } from '../features/documents/utils/documentValidation';
+import { displayAttribute, validateDocumentAttributes, validateDocumentField } from '../features/documents/utils/documentValidation';
 import { createDocument, fetchDocumentTypes, uploadDocumentFiles } from '../store/documentsSlice';
 import { documentsApi } from '../api/documents';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { CreateDocumentRequest, AttributeValue } from '../types/document';
+import type { CreateDocumentRequest, AttributeValue, DocumentAttributes, DocumentType } from '../types/document';
 
-const maxFileSize = 100 * 1024 * 1024;
-const supportedFormats = '.pdf,.docx,.xlsx';
 const initialForm: CreateDocumentRequest = { documentTypeId: '', attributes: {} };
+
+const currentDate = () => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+const initialAttributes = (definition?: DocumentType): DocumentAttributes => Object.fromEntries(
+  Object.entries(definition?.ui.initialValues ?? {}).map(([name, value]) => [name, value === 'now' ? currentDate() : value]),
+);
 
 const steps = ['Атрибуты документа', 'Вложения', 'Подтверждение'];
 const fieldProps = { fullWidth: true, size: 'small' as const };
@@ -60,10 +65,13 @@ export function DocumentCreatePage() {
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const availableDocumentTypes = documentTypes;
   const selectedDocumentType = availableDocumentTypes.find((item) => item.id === form.documentTypeId);
   const initialRequired = selectedDocumentType?.initialAttachmentRequired ?? false;
+  const attachmentPolicy = selectedDocumentType?.attachments;
 
   useEffect(() => {
     if (documentTypes.length === 0) void dispatch(fetchDocumentTypes());
@@ -72,15 +80,34 @@ export function DocumentCreatePage() {
   useEffect(() => {
     if (documentTypes.length === 0) return;
     if (documentTypes.some((item) => item.id === form.documentTypeId)) return;
-    setForm((current) => ({ ...current, documentTypeId: documentTypes[0].id }));
+    setForm({ documentTypeId: documentTypes[0].id, attributes: initialAttributes(documentTypes[0]) });
   }, [documentTypes, form.documentTypeId]);
 
   const updateField = (field: string, value: AttributeValue) => {
     setForm(current => ({ ...current, attributes: { ...current.attributes, [field]: value } }));
+    if (touchedFields.has(field)) {
+      const error = validateDocumentField(field, value, selectedDocumentType);
+      setFieldErrors(current => { const next = { ...current }; if (error) next[field] = error; else delete next[field]; return next; });
+    }
     setValidationError(null);
   };
+  const touchField = (field: string) => {
+    setTouchedFields(current => new Set(current).add(field));
+    const error = validateDocumentField(field, form.attributes[field], selectedDocumentType);
+    setFieldErrors(current => { const next = { ...current }; if (error) next[field] = error; else delete next[field]; return next; });
+  };
+  const touchCurrentStep = () => {
+    if (!selectedDocumentType) return;
+    setTouchedFields(current => new Set([...current, ...selectedDocumentType.ui.fields]));
+    const errors: Record<string, string> = {};
+    for (const field of selectedDocumentType.ui.fields) {
+      const error = validateDocumentField(field, form.attributes[field], selectedDocumentType);
+      if (error) errors[field] = error;
+    }
+    setFieldErrors(errors);
+  };
   const selectType = (documentTypeId: string) => {
-    setForm({ documentTypeId, attributes: {} }); setFiles([]); setValidationError(null);
+    setForm({ documentTypeId, attributes: initialAttributes(documentTypes.find(type => type.id === documentTypeId)) }); setFiles([]); setValidationError(null); setTouchedFields(new Set()); setFieldErrors({});
     creationRequestId.current = crypto.randomUUID();
   };
 
@@ -88,9 +115,10 @@ export function DocumentCreatePage() {
     if (!selectedDocumentType?.attachments.enabled) return;
     const incomingFiles = Array.from(incoming);
     if (files.length + incomingFiles.length > selectedDocumentType.attachments.maxCount) { setValidationError('Превышено допустимое количество вложений'); return; }
-    const invalidFiles = incomingFiles.filter((file) => !getSupportedFileKind(file.name));
-    const oversizedFiles = incomingFiles.filter((file) => file.size > maxFileSize);
-    const acceptedFiles = incomingFiles.filter((file) => getSupportedFileKind(file.name) && file.size <= maxFileSize);
+    const extension = (file: File) => file.name.split('.').pop()?.toLowerCase() ?? '';
+    const invalidFiles = incomingFiles.filter((file) => Boolean(attachmentPolicy?.allowedExtensions.length) && !attachmentPolicy!.allowedExtensions.includes(extension(file)));
+    const oversizedFiles = incomingFiles.filter((file) => file.size > (attachmentPolicy?.maxSizeBytes ?? 0));
+    const acceptedFiles = incomingFiles.filter((file) => (!attachmentPolicy?.allowedExtensions.length || attachmentPolicy.allowedExtensions.includes(extension(file))) && file.size <= (attachmentPolicy?.maxSizeBytes ?? 0));
 
     setFiles((current) => {
       const keys = new Set(current.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
@@ -98,9 +126,9 @@ export function DocumentCreatePage() {
     });
 
     if (invalidFiles.length > 0) {
-      setValidationError(`Не поддерживается формат: ${invalidFiles.map((file) => file.name).join(', ')}. Разрешены только PDF, DOCX и XLSX.`);
+      setValidationError(`Не поддерживается формат: ${invalidFiles.map((file) => file.name).join(', ')}.`);
     } else if (oversizedFiles.length > 0) {
-      setValidationError(`Размер файла не должен превышать 100 МБ: ${oversizedFiles.map((file) => file.name).join(', ')}`);
+      setValidationError(`Превышен допустимый размер файла: ${oversizedFiles.map((file) => file.name).join(', ')}`);
     } else {
       setValidationError(null);
     }
@@ -115,6 +143,7 @@ export function DocumentCreatePage() {
   const moveNext = () => {
     const stepError = activeStep === 0 ? validateDocumentAttributes(form, selectedDocumentType) : initialRequired && files.length === 0 ? 'Для создания документа добавьте вложение' : null;
     if (stepError) {
+      if (activeStep === 0) touchCurrentStep();
       setValidationError(stepError);
       return;
     }
@@ -223,14 +252,14 @@ export function DocumentCreatePage() {
                   {availableDocumentTypes.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
                 </TextField>
               </FormField>
-              {selectedDocumentType && <DocumentFields definition={selectedDocumentType} value={form.attributes} onChange={updateField} disabled={saving} />}
+              {selectedDocumentType && <DocumentFields definition={selectedDocumentType} value={form.attributes} onChange={updateField} onBlur={touchField} errors={fieldErrors} disabled={saving} />}
             </Box>
           </SectionPanel>
         )}
 
         {activeStep === 1 && !selectedDocumentType?.attachments.enabled && <Alert severity="info">Для этого вида вложения отключены</Alert>}
         {activeStep === 1 && selectedDocumentType?.attachments.enabled && (
-          <SectionPanel title={initialRequired ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
+          <SectionPanel title={"Вложения"} count={files.length}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: files.length > 0 ? 'minmax(0, 1.15fr) minmax(360px, .85fr)' : '1fr' }, gap: 2 }}>
               <Box>
                 <Box
@@ -250,7 +279,7 @@ export function DocumentCreatePage() {
                     <Typography sx={{ fontSize: 13 }}>или нажмите для выбора файлов</Typography>
                     <Typography color="text.secondary" sx={{ fontSize: 11, mt: '20px !important' }}>PDF, DOCX, XLSX до 100 МБ</Typography>
                   </Stack>
-                  <input ref={fileInputRef} type="file" multiple hidden accept={supportedFormats} onChange={(event) => { if (event.target.files) addFiles(event.target.files); event.target.value = ''; }} />
+                  <input ref={fileInputRef} type="file" multiple hidden accept={attachmentPolicy?.allowedExtensions.map((extension) => `.${extension}`).join(',') ?? ''} onChange={(event) => { if (event.target.files) addFiles(event.target.files); event.target.value = ''; }} />
                 </Box>
                 <Stack sx={{ mt: 1.4, alignItems: 'center' }}>
                   <Button variant="outlined" color="inherit" startIcon={<AttachFileIcon />} onClick={() => fileInputRef.current?.click()}>Выбрать файлы</Button>
@@ -276,7 +305,7 @@ export function DocumentCreatePage() {
               <SummaryRow label="Вид документа" value={selectedDocumentType?.name ?? 'Вид не выбран'} />
               {selectedDocumentType?.ui.fields.map(name => <SummaryRow key={name} label={selectedDocumentType.schema.properties[name].title || name} value={displayAttribute(form.attributes[name], selectedDocumentType.schema.properties[name])} />)}
             </SectionPanel>
-            <SectionPanel title={initialRequired ? "Вложения (обязательно)" : "Вложения"} count={files.length}>
+            <SectionPanel title={"Вложения"} count={files.length}>
               {files.length > 0 ? <LocalDocumentFilesList files={files} onPreview={setPreviewFile} /> : <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center', fontSize: 12.5 }}>Вложения не добавлены</Typography>}
             </SectionPanel>
           </Box>
