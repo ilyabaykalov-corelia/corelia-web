@@ -210,8 +210,19 @@ export const uploadDocumentFiles = createAsyncThunk(
   'documents/uploadFiles',
   async ({ documentId, files }: { documentId: string; files: File[] }, api) => {
     try {
-      for (const file of files) await documentsApi.uploadFile(documentId, file);
-      return await documentsApi.getById(documentId);
+      const uploaded = [];
+      for (const file of files) uploaded.push(await documentsApi.uploadFile(documentId, file));
+      const document = await documentsApi.getById(documentId);
+      const attachments = new Map(document.attachments.map((attachment) => [attachment.id, attachment]));
+      uploaded.forEach((attachment) => attachments.set(attachment.id, attachment));
+      const latestCommit = uploaded[uploaded.length - 1];
+      const committedVersion = latestCommit?.currentVersion;
+      return {
+        ...document,
+        ...(committedVersion === undefined ? {} : { version: committedVersion, currentVersion: committedVersion }),
+        changeToken: latestCommit?.changeToken ?? document.changeToken,
+        attachments: Array.from(attachments.values()),
+      };
     } catch (error) {
       return api.rejectWithValue(errorMessage(error));
     }
