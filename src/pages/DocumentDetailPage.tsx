@@ -472,9 +472,9 @@ export function DocumentDetailPage() {
 				</Paper>) }</Stack> }
 			</SectionPanel> }
 
-			{ selectedTab !== 2 && <Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
+				{ selectedTab !== 2 && <Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
 				<Stack spacing={ 2 } sx={ { minWidth: 0 } }>
-					<SectionPanel title="Атрибуты карточки">
+					{ selectedTab === 0 && <SectionPanel title="Атрибуты карточки">
 						{ editing && form ? (
 							<Stack spacing={ 1.5 }>
 								{ validationError && <Alert severity="error">{ validationError }</Alert> }
@@ -490,9 +490,9 @@ export function DocumentDetailPage() {
 								<AttributeRow label="Кто создал">{ document.createdBy }</AttributeRow>
 							</>
 						) }
-					</SectionPanel>
+					</SectionPanel> }
 
-					<SectionPanel title="Бизнес-процесс">
+					{ selectedTab === 0 && <SectionPanel title="Бизнес-процесс">
 						<Box sx={ { display: 'flex', alignItems: 'flex-start', overflowX: 'auto', pb: 0.5 } }>
 							{ processSteps.map((step, index) => {
 								const sx = stepStyles[step.state];
@@ -523,11 +523,11 @@ export function DocumentDetailPage() {
 								);
 							}) }
 						</Box>
-					</SectionPanel>
+					</SectionPanel> }
 				</Stack>
 
 				<Stack spacing={ 2 } sx={ { minWidth: 0 } }>
-					{ document.workflow?.executor ? (
+					{ selectedTab === 0 && document.workflow?.executor ? (
 						<SectionPanel title="Исполнитель">
 							<>
 								<AttributeRow label="Исполнитель">{ document.workflow.executor.login || 'Не назначен' }</AttributeRow>
@@ -540,7 +540,7 @@ export function DocumentDetailPage() {
 						</SectionPanel>
 					) : <></> }
 
-					<SectionPanel
+					{ selectedTab === 1 && <SectionPanel
 						title="Вложения"
 						count={ document.attachments.length }
 						inlineAction={ canAddAttachment ? (
@@ -586,7 +586,7 @@ export function DocumentDetailPage() {
 								onShowVersions={ (attachment) => void openPreviousVersions(attachment) }
 							/>
 						) }
-					</SectionPanel>
+					</SectionPanel> }
 
 					{/* <SectionPanel title="Доступ" action={<Typography color="secondary.main" sx={{ fontSize: 11.5, cursor: 'pointer' }}>Изменить</Typography>}>
             {[['Просмотр', '15'], ['Редактирование', '5'], ['Администрирование', '2']].map(([role, count]) => (
