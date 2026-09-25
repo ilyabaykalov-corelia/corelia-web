@@ -1,22 +1,36 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { basename, dirname, resolve } from 'node:path';
 
 const webRoot = resolve(import.meta.dirname, '..');
 const brandingRoot = resolve(webRoot, '../../sber-npf-corelia-config/branding');
 const publicRoot = resolve(webRoot, 'public');
-const sourceRoot = resolve(webRoot, 'src');
-const branding = JSON.parse(await readFile(resolve(brandingRoot, 'branding.json'), 'utf8'));
+const configured = JSON.parse(await readFile(resolve(brandingRoot, 'branding.json'), 'utf8'));
 
-if (typeof branding.theme?.primaryColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(branding.theme.primaryColor))
+const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const merge = (base, override) => {
+  if (!isObject(base) || !isObject(override)) return override ?? base;
+  const result = { ...base };
+  for (const [key, value] of Object.entries(override)) result[key] = key in result ? merge(result[key], value) : value;
+  return result;
+};
+const branding = merge({ theme: { primaryColor: '#149447' }, assets: { logo: '/corelia-logo.svg', favicon: '/favicon.ico' } }, configured);
+
+if (typeof branding.theme.primaryColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(branding.theme.primaryColor))
   throw new Error('branding.theme.primaryColor должен быть цветом формата #RRGGBB');
-for (const key of ['logo', 'favicon']) if (typeof branding.assets?.[key] !== 'string' || !branding.assets[key].startsWith('/'))
-  throw new Error(`branding.assets.${key} должен быть путём от корня клиента`);
+for (const key of ['logo', 'favicon']) if (typeof branding.assets[key] !== 'string') throw new Error(`branding.assets.${key} должен быть строкой`);
 
 const destination = resolve(publicRoot, 'branding.json');
 await mkdir(dirname(destination), { recursive: true });
-await writeFile(destination, JSON.stringify(branding, null, 2) + '\n');
-await writeFile(resolve(sourceRoot, 'branding.generated.ts'), `export const clientBranding = ${JSON.stringify(branding, null, 2)} as const;\n`);
 const assets = resolve(brandingRoot, 'assets');
 const publicAssets = resolve(publicRoot, 'branding');
 await rm(publicAssets, { recursive: true, force: true });
 try { await cp(assets, publicAssets, { recursive: true }); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+for (const key of ['logo', 'favicon']) {
+  const configuredPath = configured.assets?.[key];
+  if (typeof configuredPath !== 'string' || !configuredPath.startsWith('/')) continue;
+  const source = resolve(assets, basename(configuredPath));
+  try {
+    if ((await stat(source)).isFile()) branding.assets[key] = `/branding/${basename(configuredPath)}`;
+  } catch (error) { if (error.code !== 'ENOENT') throw error; }
+}
+await writeFile(destination, JSON.stringify(branding, null, 2) + '\n');
