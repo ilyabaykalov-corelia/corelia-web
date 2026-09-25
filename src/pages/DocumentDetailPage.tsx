@@ -472,7 +472,7 @@ export function DocumentDetailPage() {
 				</Paper>) }</Stack> }
 			</SectionPanel> }
 
-				{ selectedTab !== 2 && <Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
+			{ selectedTab !== 2 && <Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
 				<Stack spacing={ 2 } sx={ { minWidth: 0 } }>
 					{ selectedTab === 0 && <SectionPanel title="Атрибуты карточки">
 						{ editing && form ? (
@@ -540,7 +540,7 @@ export function DocumentDetailPage() {
 						</SectionPanel>
 					) : <></> }
 
-					{ selectedTab === 1 && <SectionPanel
+					{ (selectedTab === 0 || selectedTab === 1) && <SectionPanel
 						title="Вложения"
 						count={ document.attachments.length }
 						inlineAction={ canAddAttachment ? (
