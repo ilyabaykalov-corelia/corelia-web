@@ -19,6 +19,7 @@ import type {
 } from '../types/document';
 
 const apiRoot = '/api/core/v1';
+export type UploadedAttachment = Attachment & { currentVersion?: number; changeToken?: string };
 interface CoreliaDocumentRecord {
   version?: number;
   currentVersion?: number;
@@ -142,16 +143,12 @@ export const documentsApi = {
     const type = (await documentsApi.getById(documentId)).documentTypeId;
     return apiClient.post<Attachment[]>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments`, { attachments, requestId });
   },
-  uploadFile: async (documentId: string, file: File, requestId: string = crypto.randomUUID()): Promise<Attachment> => {
+  uploadFile: async (documentId: string, file: File, requestId: string = crypto.randomUUID()): Promise<UploadedAttachment> => {
     const type = (await documentsApi.getById(documentId)).documentTypeId;
     const form = new FormData();
     form.set('requestId', requestId);
     form.set('file', file, file.name);
-    await apiClient.postForm<Attachment>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments/stream`, form);
-    const document = await documentsApi.getById(documentId);
-    const uploaded = document.attachments[document.attachments.length - 1];
-    if (!uploaded) throw new Error('Файл загружен, но не появился в составе документа');
-    return uploaded;
+    return apiClient.postForm<UploadedAttachment>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments/stream`, form);
   },
   replaceAttachment: (attachmentId: string, attachment: AttachmentUpload) =>
     apiClient.put<Attachment>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`, { attachments: [attachment], requestId: crypto.randomUUID() }),
