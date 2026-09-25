@@ -6,7 +6,7 @@ import { CssBaseline, ThemeProvider } from '@mui/material';
 import App from './App';
 import { store } from './store';
 import { theme } from './theme/theme';
-import { clientBranding } from './branding';
+import { clientBranding } from './branding.generated';
 import './index.css';
 
 const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');

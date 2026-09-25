@@ -3,6 +3,7 @@ node_modules
 .npm-cache
 dist
 public/branding.json
+public/branding/
 .DS_Store
 *.local
 .env

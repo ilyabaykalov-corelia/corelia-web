@@ -48,7 +48,7 @@ import { logoutUser } from '../store/authSlice';
 import type { DocumentSearchRequest } from '../types/document';
 import { taskCountersChangedEvent, tasksApi } from '../api/tasks';
 import type { TaskCountersDelta } from '../types/task';
-import { clientBranding } from '../branding';
+import { clientBranding } from '../branding.generated';
 
 const expandedDrawerWidth = 240;
 const collapsedDrawerWidth = 72;

@@ -1,5 +1,5 @@
 import { alpha, createTheme } from '@mui/material/styles';
-import { clientBranding } from '../branding';
+import { clientBranding } from '../branding.generated';
 
 const primary = clientBranding.theme.primaryColor;
 
