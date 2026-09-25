@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 const webRoot = resolve(import.meta.dirname, '..');
 const brandingRoot = resolve(webRoot, '../../sber-npf-corelia-config/branding');
 const publicRoot = resolve(webRoot, 'public');
+const sourceRoot = resolve(webRoot, 'src');
 const branding = JSON.parse(await readFile(resolve(brandingRoot, 'branding.json'), 'utf8'));
 
 if (typeof branding.theme?.primaryColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(branding.theme.primaryColor))
@@ -14,6 +15,7 @@ for (const key of ['logo', 'favicon']) if (typeof branding.assets?.[key] !== 'st
 const destination = resolve(publicRoot, 'branding.json');
 await mkdir(dirname(destination), { recursive: true });
 await writeFile(destination, JSON.stringify(branding, null, 2) + '\n');
+await writeFile(resolve(sourceRoot, 'branding.generated.ts'), `export const clientBranding = ${JSON.stringify(branding, null, 2)} as const;\n`);
 const assets = resolve(brandingRoot, 'assets');
 const publicAssets = resolve(publicRoot, 'branding');
 await rm(publicAssets, { recursive: true, force: true });
