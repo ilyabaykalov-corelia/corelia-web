@@ -48,6 +48,7 @@ import { logoutUser } from '../store/authSlice';
 import type { DocumentSearchRequest } from '../types/document';
 import { taskCountersChangedEvent, tasksApi } from '../api/tasks';
 import type { TaskCountersDelta } from '../types/task';
+import { clientBranding } from '../branding';
 
 const expandedDrawerWidth = 240;
 const collapsedDrawerWidth = 72;
@@ -242,7 +243,7 @@ export function AppLayout({ children }: PropsWithChildren) {
     <Stack sx={{ height: '100%', bgcolor: '#fff' }}>
       <Stack sx={{ height: 70, flexShrink: 0, px: sidebarCollapsed ? 0 : 2.5, justifyContent: 'center', alignItems: sidebarCollapsed ? 'center' : 'flex-start' }}>
         <Box sx={{ width: sidebarCollapsed ? 34 : 142, overflow: 'hidden', transition: theme.transitions.create('width') }}>
-          <Box component="img" src="/corelia-logo.svg" alt="Corelia" sx={{ width: 142, maxWidth: 'none', height: 'auto', display: 'block' }} />
+          <Box component="img" src={clientBranding.assets.logo} alt="Логотип" sx={{ width: 142, maxWidth: 'none', height: 'auto', display: 'block' }} />
         </Box>
       </Stack>
 

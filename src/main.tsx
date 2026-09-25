@@ -6,7 +6,11 @@ import { CssBaseline, ThemeProvider } from '@mui/material';
 import App from './App';
 import { store } from './store';
 import { theme } from './theme/theme';
+import { clientBranding } from './branding';
 import './index.css';
+
+const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+if (favicon) favicon.href = clientBranding.assets.favicon;
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

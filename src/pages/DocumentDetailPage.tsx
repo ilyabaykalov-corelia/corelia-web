@@ -18,6 +18,12 @@ import {
 	Paper,
 	Stack,
 	Tab,
+	Table,
+	TableBody,
+	TableCell,
+	TableContainer,
+	TableHead,
+	TableRow,
 	Tabs,
 	TextField,
 	Tooltip,
@@ -462,12 +468,14 @@ export function DocumentDetailPage() {
 				{ historyLoading && <Stack direction="row" spacing={ 1 } sx={ { alignItems: 'center' } }><CircularProgress size={ 18 }/><Typography>Загрузка истории...</Typography></Stack> }
 				{ historyError && <Alert severity="error">Не удалось загрузить историю: { historyError }</Alert> }
 				{ !historyLoading && !historyError && history.length === 0 && <Typography color="text.secondary">История изменений отсутствует</Typography> }
-				{ !historyLoading && !historyError && <Stack spacing={ 1.25 }>{ history.map(entry => <Paper key={ entry.id } variant="outlined" sx={ { p: 1.25 } }>
-					<Typography sx={ { fontSize: 12.5, fontWeight: 600 } }>{ formatDateTime(entry.timestamp) }</Typography><Typography color="text.secondary" sx={ { fontSize: 12 } }>{ entry.userLogin }</Typography>
-					<Typography sx={ { mt: 0.75, fontSize: 12.5 } }>{ historyDescription(entry) }</Typography>
-					{ entry.changes?.map(change => <Typography key={ change.field } color="text.secondary" sx={ { fontSize: 12, whiteSpace: 'pre-wrap' } }>«{ change.fieldLabel }»: { valueText(change.oldValue) } → { valueText(change.newValue) }</Typography>) }
-					{ entry.documentVersion !== undefined && entry.action === 'ATTRIBUTES_CHANGED' && <Typography color="text.secondary" sx={ { fontSize: 12 } }>Версия документа: { entry.documentVersion }</Typography> }
-				</Paper>) }</Stack> }
+				{ !historyLoading && !historyError && history.length > 0 && <TableContainer component={ Paper } variant="outlined"><Table size="small" aria-label="История документа">
+					<TableHead><TableRow><TableCell sx={ { width: 170 } }>Дата и время</TableCell><TableCell sx={ { width: 150 } }>Пользователь</TableCell><TableCell>Изменение</TableCell><TableCell sx={ { width: 130 } }>Версия документа</TableCell></TableRow></TableHead>
+					<TableBody>{ history.map(entry => <TableRow key={ entry.id } hover>
+						<TableCell>{ formatDateTime(entry.timestamp) }</TableCell><TableCell>{ entry.userLogin || 'Система' }</TableCell>
+						<TableCell><Typography sx={ { fontSize: 12.5 } }>{ historyDescription(entry) }</Typography>{ entry.changes?.map(change => <Typography key={ change.field } color="text.secondary" sx={ { fontSize: 12, whiteSpace: 'pre-wrap', mt: 0.25 } }>«{ change.fieldLabel }»: { valueText(change.oldValue) } → { valueText(change.newValue) }</Typography>) }</TableCell>
+						<TableCell>{ entry.documentVersion ?? '—' }</TableCell>
+					</TableRow>) }</TableBody>
+				</Table></TableContainer> }
 			</SectionPanel> }
 
 			{ selectedTab !== 2 && <Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
