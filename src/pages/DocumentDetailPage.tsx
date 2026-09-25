@@ -83,11 +83,9 @@ function StepIcon({ state }: { state: ProcessStepState }) {
 
 function historyDescription(entry: DocumentHistoryEntry) {
 	if (entry.action === 'DOCUMENT_CREATED') return 'Создан документ';
-	if (entry.action === 'ATTRIBUTE_SET') return `Заполнен атрибут «${entry.fieldLabel ?? entry.field}»`;
-	if (entry.action === 'ATTRIBUTE_CLEARED') return `Очищен атрибут «${entry.fieldLabel ?? entry.field}»`;
-	if (entry.action === 'ATTRIBUTE_CHANGED') return `Изменён атрибут «${entry.fieldLabel ?? entry.field}»`;
-	if (entry.action === 'ATTACHMENT_ADDED') return 'Загружено вложение';
-	if (entry.action === 'ATTACHMENT_REPLACED') return 'Заменено вложение';
+	if (entry.action === 'ATTRIBUTES_CHANGED') return entry.changes?.length === 1 ? `Изменён атрибут «${entry.changes[0].fieldLabel}»` : 'Изменены атрибуты:';
+	if (entry.action === 'ATTACHMENT_ADDED') return `Добавлено вложение: ${entry.attachment?.newFileName ?? '—'} (вер. ${entry.attachment?.newVersion ?? 1})`;
+	if (entry.action === 'ATTACHMENT_REPLACED') return `Заменено вложение: ${entry.attachment?.oldFileName ?? '—'} (вер. ${entry.attachment?.oldVersion ?? '—'}) → ${entry.attachment?.newFileName ?? '—'} (вер. ${entry.attachment?.newVersion ?? '—'})`;
 	return 'Удалено вложение';
 }
 function valueText(value: AttributeValue | undefined) { return value === null || value === undefined || value === '' ? '—' : String(value); }
@@ -467,8 +465,8 @@ export function DocumentDetailPage() {
 				{ !historyLoading && !historyError && <Stack spacing={ 1.25 }>{ history.map(entry => <Paper key={ entry.id } variant="outlined" sx={ { p: 1.25 } }>
 					<Typography sx={ { fontSize: 12.5, fontWeight: 600 } }>{ formatDateTime(entry.timestamp) }</Typography><Typography color="text.secondary" sx={ { fontSize: 12 } }>{ entry.userLogin }</Typography>
 					<Typography sx={ { mt: 0.75, fontSize: 12.5 } }>{ historyDescription(entry) }</Typography>
-					{ entry.action.startsWith('ATTRIBUTE_') && <Typography color="text.secondary" sx={ { fontSize: 12 } }>{ entry.action === 'ATTRIBUTE_SET' ? `Новое значение: ${valueText(entry.newValue)}` : entry.action === 'ATTRIBUTE_CLEARED' ? `Было: ${valueText(entry.oldValue)}` : `${valueText(entry.oldValue)} → ${valueText(entry.newValue)}` }</Typography> }
-					{ entry.attachment && <Typography color="text.secondary" sx={ { fontSize: 12 } }>{ entry.attachment.oldFileName && `Было: ${entry.attachment.oldFileName}` }{ entry.attachment.oldFileName && entry.attachment.newFileName && ' → ' }{ entry.attachment.newFileName && (entry.attachment.oldFileName ? `Стало: ${entry.attachment.newFileName}` : entry.attachment.newFileName) }</Typography> }
+					{ entry.changes?.map(change => <Typography key={ change.field } color="text.secondary" sx={ { fontSize: 12, whiteSpace: 'pre-wrap' } }>«{ change.fieldLabel }»: { valueText(change.oldValue) } → { valueText(change.newValue) }</Typography>) }
+					{ entry.documentVersion !== undefined && entry.action === 'ATTRIBUTES_CHANGED' && <Typography color="text.secondary" sx={ { fontSize: 12 } }>Версия документа: { entry.documentVersion }</Typography> }
 				</Paper>) }</Stack> }
 			</SectionPanel> }
 
