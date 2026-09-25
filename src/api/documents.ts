@@ -147,7 +147,11 @@ export const documentsApi = {
     const form = new FormData();
     form.set('requestId', requestId);
     form.set('file', file, file.name);
-    return apiClient.postForm<Attachment>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments/stream`, form);
+    await apiClient.postForm<Attachment>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments/stream`, form);
+    const document = await documentsApi.getById(documentId);
+    const uploaded = document.attachments[document.attachments.length - 1];
+    if (!uploaded) throw new Error('Файл загружен, но не появился в составе документа');
+    return uploaded;
   },
   replaceAttachment: (attachmentId: string, attachment: AttachmentUpload) =>
     apiClient.put<Attachment>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`, { attachments: [attachment], requestId: crypto.randomUUID() }),

@@ -410,7 +410,7 @@ const documentsSlice = createSlice({
             action.payload.processInstanceId ??
             (state.currentItem?.id === action.payload.id ? state.currentItem.processInstanceId : undefined),
         };
-        upsertDocument(state.items, action.payload);
+        upsertDocument(state.items, state.currentItem);
       })
       .addCase(uploadDocumentFiles.rejected, (state, action) => {
         state.saving = false;
