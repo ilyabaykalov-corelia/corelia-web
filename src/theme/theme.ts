@@ -1,9 +1,10 @@
 import { alpha, createTheme } from '@mui/material/styles';
-import { clientBranding } from '../branding.generated';
+import type { BrandingConfig } from '../branding.default';
 
-const primary = clientBranding.theme.primaryColor;
+export const createAppTheme = (branding: BrandingConfig) => {
+const primary = branding.theme.primaryColor;
 
-export const theme = createTheme({
+return createTheme({
   palette: {
     primary: { main: primary },
     secondary: { main: '#1466c3' },
@@ -49,3 +50,4 @@ export const theme = createTheme({
     MuiBreadcrumbs: { styleOverrides: { root: { color: '#667386' }, separator: { color: '#8a95a3' } } },
   },
 });
+};
