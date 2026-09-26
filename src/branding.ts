@@ -10,8 +10,13 @@ const merge = (base: unknown, override: unknown): unknown => {
   return result;
 };
 
+/** Возвращает branding, загруженный перед инициализацией React-приложения. */
 export const getClientBranding = () => currentBranding;
 
+/**
+ * Загружает build-time сформированный `/branding.json` и накладывает его на defaults.
+ * Ошибка сети не делает клиент неработоспособным: в runtime остаются defaults Corelia.
+ */
 export async function loadClientBranding(): Promise<BrandingConfig> {
   try {
     const response = await fetch('/branding.json', { cache: 'no-store' });
