@@ -18,6 +18,12 @@ import {
 	Paper,
 	Stack,
 	Tab,
+	Table,
+	TableBody,
+	TableCell,
+	TableContainer,
+	TableHead,
+	TableRow,
 	Tabs,
 	TextField,
 	Tooltip,
@@ -44,7 +50,7 @@ import { displayAttribute, validateDocumentAttributes } from '../features/docume
 import { documentsApi } from '../api/documents';
 import { clearCurrentDocument, completeDocumentApproval, deleteDocumentAttachment, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, replaceDocumentFile, updateDocument, uploadDocumentFiles } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { AttributeValue, Attachment, DocumentRecord, DocumentVersion, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
+import type { AttributeValue, Attachment, DocumentHistoryEntry, DocumentRecord, DocumentVersion, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
 import { formatDateTime } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
@@ -81,12 +87,25 @@ function StepIcon({ state }: { state: ProcessStepState }) {
 	return <CheckCircleIcon sx={ { color: state === 'active' ? '#245c9f' : 'primary.main', fontSize: 18 } }/>;
 }
 
+function historyDescription(entry: DocumentHistoryEntry) {
+	if (entry.action === 'DOCUMENT_CREATED') return 'Создан документ';
+	if (entry.action === 'ATTRIBUTES_CHANGED') return entry.changes?.length === 1 ? `Изменён атрибут «${entry.changes[0].fieldLabel}»` : 'Изменены атрибуты:';
+	if (entry.action === 'ATTACHMENT_ADDED') return `Добавлено вложение: ${entry.attachment?.newFileName ?? '—'} (вер. ${entry.attachment?.newVersion ?? 1})`;
+	if (entry.action === 'ATTACHMENT_REPLACED') return `Заменено вложение: ${entry.attachment?.oldFileName ?? '—'} (вер. ${entry.attachment?.oldVersion ?? '—'}) → ${entry.attachment?.newFileName ?? '—'} (вер. ${entry.attachment?.newVersion ?? '—'})`;
+	return 'Удалено вложение';
+}
+function valueText(value: AttributeValue | undefined) { return value === null || value === undefined || value === '' ? '—' : String(value); }
+
 export function DocumentDetailPage() {
 	const { id } = useParams();
 	const dispatch = useAppDispatch();
 	const { currentItem: currentDocument, loading, saving, error, documentTypes } = useAppSelector((state) => state.documents);
 	const [ historicalDocument, setHistoricalDocument ] = useState<DocumentRecord | null>(null);
 	const [ documentVersions, setDocumentVersions ] = useState<DocumentVersion[]>([]);
+	const [ history, setHistory ] = useState<DocumentHistoryEntry[]>([]);
+	const [ historyLoading, setHistoryLoading ] = useState(false);
+	const [ historyError, setHistoryError ] = useState<string | null>(null);
+	const [ selectedTab, setSelectedTab ] = useState(0);
 	const [ selectedVersion, setSelectedVersion ] = useState<number | null>(null);
 	const [ versionLoading, setVersionLoading ] = useState(false);
 	const [ capabilities, setCapabilities ] = useState<string[]>([]);
@@ -130,6 +149,14 @@ export function DocumentDetailPage() {
 		void documentsApi.getVersions(id).then(result => {
 			if (active) setDocumentVersions(result.items);
 		}).catch(error => { if (active) setActionError(String(error)); });
+		return () => { active = false; };
+	}, [id, currentDocument?.id, currentDocument?.version, currentDocument?.changeToken]);
+
+	useEffect(() => {
+		if (!id || currentDocument?.id !== id) return;
+		let active = true; setHistoryLoading(true); setHistoryError(null);
+		void documentsApi.getHistory(id, currentDocument.documentTypeId).then(result => { if (active) setHistory(result.items); })
+			.catch(error => { if (active) setHistoryError(String(error)); }).finally(() => { if (active) setHistoryLoading(false); });
 		return () => { active = false; };
 	}, [id, currentDocument?.id, currentDocument?.version, currentDocument?.changeToken]);
 
@@ -426,7 +453,7 @@ export function DocumentDetailPage() {
 				</Stack>
 			</Stack>
 
-			<Tabs value={ 0 } variant="scrollable" scrollButtons={ false } sx={ {
+			<Tabs value={ selectedTab } onChange={ (_, value) => setSelectedTab(value) } variant="scrollable" scrollButtons={ false } sx={ {
 				minHeight: 42, borderBottom: 1, borderColor: 'divider', mx: -2.5, px: 2.5, '& .MuiTab-root': { minHeight: 42, minWidth: 0, px: 1.25, mr: 2, fontSize: 12.5, color: 'text.primary' },
 			} }>
 				<Tab label="Общее"/>
@@ -437,9 +464,23 @@ export function DocumentDetailPage() {
 
 			{ (error || actionError || previewError) && <Alert severity="error">{ actionError || previewError || error }</Alert> }
 
-			<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
+			{ selectedTab === 2 && <SectionPanel title="История изменений">
+				{ historyLoading && <Stack direction="row" spacing={ 1 } sx={ { alignItems: 'center' } }><CircularProgress size={ 18 }/><Typography>Загрузка истории...</Typography></Stack> }
+				{ historyError && <Alert severity="error">Не удалось загрузить историю: { historyError }</Alert> }
+				{ !historyLoading && !historyError && history.length === 0 && <Typography color="text.secondary">История изменений отсутствует</Typography> }
+				{ !historyLoading && !historyError && history.length > 0 && <TableContainer component={ Paper } variant="outlined"><Table size="small" aria-label="История документа">
+					<TableHead><TableRow><TableCell sx={ { width: 170 } }>Дата и время</TableCell><TableCell sx={ { width: 150 } }>Пользователь</TableCell><TableCell>Изменение</TableCell><TableCell sx={ { width: 130 } }>Версия документа</TableCell></TableRow></TableHead>
+					<TableBody>{ history.map(entry => <TableRow key={ entry.id } hover>
+						<TableCell>{ formatDateTime(entry.timestamp) }</TableCell><TableCell>{ entry.userLogin || 'Система' }</TableCell>
+						<TableCell><Typography sx={ { fontSize: 12.5 } }>{ historyDescription(entry) }</Typography>{ entry.changes?.map(change => <Typography key={ change.field } color="text.secondary" sx={ { fontSize: 12, whiteSpace: 'pre-wrap', mt: 0.25 } }>«{ change.fieldLabel }»: { valueText(change.oldValue) } → { valueText(change.newValue) }</Typography>) }</TableCell>
+						<TableCell>{ entry.documentVersion ?? '—' }</TableCell>
+					</TableRow>) }</TableBody>
+				</Table></TableContainer> }
+			</SectionPanel> }
+
+			{ selectedTab !== 2 && <Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2.4fr) minmax(320px, 1fr)' }, gap: 2 } }>
 				<Stack spacing={ 2 } sx={ { minWidth: 0 } }>
-					<SectionPanel title="Атрибуты карточки">
+					{ selectedTab === 0 && <SectionPanel title="Атрибуты карточки">
 						{ editing && form ? (
 							<Stack spacing={ 1.5 }>
 								{ validationError && <Alert severity="error">{ validationError }</Alert> }
@@ -455,9 +496,9 @@ export function DocumentDetailPage() {
 								<AttributeRow label="Кто создал">{ document.createdBy }</AttributeRow>
 							</>
 						) }
-					</SectionPanel>
+					</SectionPanel> }
 
-					<SectionPanel title="Бизнес-процесс">
+					{ selectedTab === 0 && <SectionPanel title="Бизнес-процесс">
 						<Box sx={ { display: 'flex', alignItems: 'flex-start', overflowX: 'auto', pb: 0.5 } }>
 							{ processSteps.map((step, index) => {
 								const sx = stepStyles[step.state];
@@ -488,11 +529,11 @@ export function DocumentDetailPage() {
 								);
 							}) }
 						</Box>
-					</SectionPanel>
+					</SectionPanel> }
 				</Stack>
 
 				<Stack spacing={ 2 } sx={ { minWidth: 0 } }>
-					{ document.workflow?.executor ? (
+					{ selectedTab === 0 && document.workflow?.executor ? (
 						<SectionPanel title="Исполнитель">
 							<>
 								<AttributeRow label="Исполнитель">{ document.workflow.executor.login || 'Не назначен' }</AttributeRow>
@@ -505,7 +546,7 @@ export function DocumentDetailPage() {
 						</SectionPanel>
 					) : <></> }
 
-					<SectionPanel
+					{ (selectedTab === 0 || selectedTab === 1) && <SectionPanel
 						title="Вложения"
 						count={ document.attachments.length }
 						inlineAction={ canAddAttachment ? (
@@ -551,7 +592,7 @@ export function DocumentDetailPage() {
 								onShowVersions={ (attachment) => void openPreviousVersions(attachment) }
 							/>
 						) }
-					</SectionPanel>
+					</SectionPanel> }
 
 					{/* <SectionPanel title="Доступ" action={<Typography color="secondary.main" sx={{ fontSize: 11.5, cursor: 'pointer' }}>Изменить</Typography>}>
             {[['Просмотр', '15'], ['Редактирование', '5'], ['Администрирование', '2']].map(([role, count]) => (
@@ -562,7 +603,7 @@ export function DocumentDetailPage() {
             ))}
           </SectionPanel> */ }
 				</Stack>
-			</Box>
+			</Box> }
 			<Dialog open={ Boolean(versionsAttachment) } onClose={ closePreviousVersions } fullWidth maxWidth="sm">
 				<DialogTitle sx={ { fontSize: 16, fontWeight: 600, pr: 6 } }>
 					Прошлые версии{ versionsAttachment ? `: ${ versionsAttachment.fileName }` : '' }

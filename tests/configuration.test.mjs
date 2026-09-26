@@ -90,6 +90,31 @@ test('API preserves arbitrary attributes and command concurrency metadata', asyn
   } finally { globalThis.fetch = oldFetch; }
 });
 
+test('stream upload trusts committed attachment metadata despite a stale follow-up read', async () => {
+  const oldFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), method: init?.method });
+    if (init?.method === 'POST') return new Response(JSON.stringify({
+      id: 'attachment-2', documentId: 'doc-1', fileName: 'contract.pdf', contentType: 'application/pdf', size: 12,
+      version: 1, current: true, currentVersion: 2, changeToken: 'token-2', uploadedAt: '2026-09-25T07:19:51Z',
+    }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({
+      id: 'doc-1', typeCode: 'PDS_CONTRACT', typeName: 'Договор ПДС', status: 'IN_WORK', statusLabel: 'В работе',
+      version: 1, currentVersion: 1, changeToken: 'token-1', attachments: [],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const uploaded = await documentsApi.uploadFile('doc-1', new File(['file'], 'contract.pdf', { type: 'application/pdf' }));
+    assert.equal(uploaded.id, 'attachment-2');
+    assert.equal(uploaded.currentVersion, 2);
+    assert.equal(uploaded.changeToken, 'token-2');
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].method, undefined);
+    assert.equal(calls[1].method, 'POST');
+  } finally { globalThis.fetch = oldFetch; }
+});
+
 test('detail data keeps configured type title and temporal fields', async () => {
   const oldFetch = globalThis.fetch;
   const document = {

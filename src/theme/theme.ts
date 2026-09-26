@@ -1,8 +1,12 @@
 import { alpha, createTheme } from '@mui/material/styles';
+import type { BrandingConfig } from '../branding.default';
 
-export const theme = createTheme({
+export const createAppTheme = (branding: BrandingConfig) => {
+const primary = branding.theme.primaryColor;
+
+return createTheme({
   palette: {
-    primary: { main: '#149447', dark: '#087d36', light: '#e9f7ee' },
+    primary: { main: primary },
     secondary: { main: '#1466c3' },
     background: { default: '#f8fafb', paper: '#ffffff' },
     text: { primary: '#171b24', secondary: '#687486' },
@@ -36,7 +40,7 @@ export const theme = createTheme({
           background: '#ffffff',
           fontSize: 13,
           '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#9ba6b3' },
-          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { boxShadow: `0 0 0 3px ${alpha('#149447', 0.1)}` },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { boxShadow: `0 0 0 3px ${alpha(primary, 0.1)}` },
         },
         notchedOutline: { borderColor: '#d9dfe6' },
         input: { paddingTop: 10.5, paddingBottom: 10.5 },
@@ -46,3 +50,4 @@ export const theme = createTheme({
     MuiBreadcrumbs: { styleOverrides: { root: { color: '#667386' }, separator: { color: '#8a95a3' } } },
   },
 });
+};
