@@ -15,9 +15,11 @@ import type {
   UpdateDocumentRequest,
   DocumentWorkflow,
   DocumentVersion,
+  DocumentHistoryEntry,
 } from '../types/document';
 
 const apiRoot = '/api/core/v1';
+export type UploadedAttachment = Attachment & { currentVersion?: number; changeToken?: string };
 interface CoreliaDocumentRecord {
   version?: number;
   currentVersion?: number;
@@ -106,6 +108,10 @@ export const documentsApi = {
     const code = type ?? (await documentsApi.getById(id)).documentTypeId;
     return apiClient.get<{ items: DocumentVersion[] }>(`${apiRoot}/documents/${encodeURIComponent(code)}/${encodeURIComponent(id)}/versions`);
   },
+  getHistory: async (id: string, type?: string) => {
+    const code = type ?? (await documentsApi.getById(id)).documentTypeId;
+    return apiClient.get<{ items: DocumentHistoryEntry[] }>(`${apiRoot}/documents/${encodeURIComponent(code)}/${encodeURIComponent(id)}/history`);
+  },
   getVersion: async (id: string, version: number, type?: string): Promise<DocumentRecord> => {
     const code = type ?? (await documentsApi.getById(id)).documentTypeId;
     return normalizeDocument(await apiClient.get<CoreliaDocumentRecord>(`${apiRoot}/documents/${encodeURIComponent(code)}/${encodeURIComponent(id)}/versions/${version}`));
@@ -137,12 +143,12 @@ export const documentsApi = {
     const type = (await documentsApi.getById(documentId)).documentTypeId;
     return apiClient.post<Attachment[]>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments`, { attachments, requestId });
   },
-  uploadFile: async (documentId: string, file: File, requestId: string = crypto.randomUUID()): Promise<Attachment> => {
+  uploadFile: async (documentId: string, file: File, requestId: string = crypto.randomUUID()): Promise<UploadedAttachment> => {
     const type = (await documentsApi.getById(documentId)).documentTypeId;
     const form = new FormData();
     form.set('requestId', requestId);
     form.set('file', file, file.name);
-    return apiClient.postForm<Attachment>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments/stream`, form);
+    return apiClient.postForm<UploadedAttachment>(`${apiRoot}/documents/${encodeURIComponent(type)}/${encodeURIComponent(documentId)}/attachments/stream`, form);
   },
   replaceAttachment: (attachmentId: string, attachment: AttachmentUpload) =>
     apiClient.put<Attachment>(`${apiRoot}/attachments/${encodeURIComponent(attachmentId)}`, { attachments: [attachment], requestId: crypto.randomUUID() }),
