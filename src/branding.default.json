@@ -1,0 +1,10 @@
+{
+  "title": "Corelia",
+  "theme": {
+    "primaryColor": "#149447"
+  },
+  "assets": {
+    "logo": "/logo.svg",
+    "favicon": "/favicon.ico"
+  }
+}
