@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import { loginUser } from '../store/authSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { getClientBranding } from '../branding';
 
 interface LocationState {
   from?: {
@@ -49,7 +50,7 @@ export function LoginPage() {
       <Paper variant="outlined" sx={{ width: '100%', maxWidth: 420, p: { xs: 2.2, sm: 3 }, borderRadius: 1 }}>
         <Stack spacing={2.2}>
           <Stack spacing={1.2} sx={{ textAlign: 'center', alignItems: 'center' }}>
-            <Typography sx={{ fontSize: 25, fontWeight: 700, color: 'primary.main' }}>Corelia</Typography>
+            <Typography sx={{ fontSize: 25, fontWeight: 700, color: 'primary.main' }}>{getClientBranding().title}</Typography>
             <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: '#e6f5ed', color: 'primary.main', display: 'grid', placeItems: 'center' }}>
               <LockOutlinedIcon sx={{ fontSize: 24 }} />
             </Box>

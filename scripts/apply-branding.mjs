@@ -4,6 +4,7 @@ import { basename, dirname, resolve } from 'node:path';
 const webRoot = resolve(import.meta.dirname, '..');
 const brandingRoot = resolve(webRoot, '../../sber-npf-corelia-config/branding');
 const publicRoot = resolve(webRoot, 'public');
+const defaults = JSON.parse(await readFile(resolve(webRoot, 'src/branding.default.json'), 'utf8'));
 const configured = JSON.parse(await readFile(resolve(brandingRoot, 'branding.json'), 'utf8'));
 
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -13,8 +14,9 @@ const merge = (base, override) => {
   for (const [key, value] of Object.entries(override)) result[key] = key in result ? merge(result[key], value) : value;
   return result;
 };
-const branding = merge({ theme: { primaryColor: '#149447' }, assets: { logo: '/corelia-logo.svg', favicon: '/favicon.ico' } }, configured);
+const branding = merge(defaults, configured);
 
+if (typeof branding.title !== 'string' || branding.title.trim() === '') throw new Error('branding.title должен быть непустой строкой');
 if (typeof branding.theme.primaryColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(branding.theme.primaryColor))
   throw new Error('branding.theme.primaryColor должен быть цветом формата #RRGGBB');
 for (const key of ['logo', 'favicon']) if (typeof branding.assets[key] !== 'string') throw new Error(`branding.assets.${key} должен быть строкой`);
