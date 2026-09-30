@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { ApiError } from '../api/client';
 import { workflowsApi } from '../api/workflows';
+import { CoreliaBpmnModeler } from '../components/workflows/CoreliaBpmnModeler';
 import type { WorkflowDefinition } from '../types/workflow';
 
 /** Показывает опубликованные процессы без раскрытия provider-specific данных. */
@@ -43,6 +44,11 @@ export function WorkflowAdminPage() {
           {items.length === 0 && <Typography color="text.secondary" sx={{ p: 3 }}>Опубликованные процессы не найдены.</Typography>}
         </TableContainer>
       )}
+      <Stack spacing={1}>
+        <Typography variant="h5">Редактор BPMN</Typography>
+        <Typography color="text.secondary">Новый черновик будет сохранён через draft API на следующем шаге.</Typography>
+        <CoreliaBpmnModeler />
+      </Stack>
     </Stack>
   );
 }
