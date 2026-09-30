@@ -9,6 +9,7 @@ import { DocumentCreatePage } from './pages/DocumentCreatePage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { TasksListPage } from './pages/TasksListPage';
+import { WorkflowAdminPage } from './pages/WorkflowAdminPage';
 import { clearSession, setSession } from './store/authSlice';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 
@@ -63,6 +64,7 @@ export default function App() {
       <Route path="/tasks" element={<Navigate to="/tasks/my" replace />} />
       <Route path="/tasks/my" element={<ProtectedApp><TasksListPage queue="MY" /></ProtectedApp>} />
       <Route path="/tasks/available" element={<ProtectedApp><TasksListPage queue="AVAILABLE" /></ProtectedApp>} />
+      <Route path="/admin/workflows" element={<ProtectedApp><WorkflowAdminPage /></ProtectedApp>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
