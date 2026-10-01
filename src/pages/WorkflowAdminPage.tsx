@@ -41,6 +41,22 @@ export function WorkflowAdminPage() {
       setDraft(saved); setDraftXml(saved.bpmnXml);
     }).catch(showError).finally(() => setSaving(false));
   };
+  const exportDraft = () => {
+    if (!draft) return;
+    setSaving(true); setError(null);
+    void workflowsApi.exportDraft(draft.key).then((exported) => {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([exported.bpmnXml], { type: 'application/xml' }));
+      link.download = `${exported.key}.bpmn20.xml`; link.click(); URL.revokeObjectURL(link.href);
+    }).catch(showError).finally(() => setSaving(false));
+  };
+  const importDraft = (file: File | undefined) => {
+    if (!draft || !file) return;
+    setSaving(true); setError(null);
+    void file.text().then((bpmnXml) => workflowsApi.importDraft(draft.key, draft.name, bpmnXml)).then((saved) => {
+      setDraft(saved); setDraftXml(saved.bpmnXml);
+    }).catch(showError).finally(() => setSaving(false));
+  };
 
   return (
     <Stack spacing={2}>
@@ -73,7 +89,11 @@ export function WorkflowAdminPage() {
         <Typography variant="h5">Редактор BPMN</Typography>
         {draft ? <>
           <Typography color="text.secondary">Черновик: {draft.name} ({draft.key})</Typography>
-          <Stack direction="row"><Button variant="contained" onClick={saveDraft} disabled={saving}>Сохранить черновик</Button></Stack>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+            <Button variant="contained" onClick={saveDraft} disabled={saving}>Сохранить черновик</Button>
+            <Button onClick={exportDraft} disabled={saving}>Экспорт BPMN</Button>
+            <Button component="label" disabled={saving}>Импорт BPMN<input hidden type="file" accept=".bpmn,.xml,application/xml,text/xml" onChange={(event) => importDraft(event.target.files?.[0])} /></Button>
+          </Stack>
           <CoreliaBpmnModeler bpmnXml={draftXml} onChange={setDraftXml} />
         </> : <Alert severity="info">Создайте процесс, чтобы открыть его BPMN-черновик.</Alert>}
       </Stack>
