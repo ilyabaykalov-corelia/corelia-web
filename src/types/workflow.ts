@@ -10,6 +10,7 @@ export interface WorkflowDefinition {
 }
 
 export interface WorkflowDefinitionsResponse {
+  editEnabled: boolean;
   items: WorkflowDefinition[];
 }
 

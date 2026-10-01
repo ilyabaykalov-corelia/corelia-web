@@ -107,8 +107,8 @@ export function CoreliaBpmnModeler({ bpmnXml, onChange, readOnly = false }: Core
   }, [bpmnXml]);
 
   return <div aria-readonly={readOnly} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 32%)', minHeight: 520, border: '1px solid #d9dee7' }}>
-    <div ref={canvas} />
-    <div style={{ borderLeft: '1px solid #d9dee7', overflow: 'auto' }}><div ref={settings} /><div ref={properties} /></div>
+    <div ref={canvas} style={{ pointerEvents: readOnly ? 'none' : undefined }} />
+    <div style={{ borderLeft: '1px solid #d9dee7', overflow: 'auto', pointerEvents: readOnly ? 'none' : undefined }}><div ref={settings} /><div ref={properties} /></div>
   </div>;
 }
 

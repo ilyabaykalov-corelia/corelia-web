@@ -15,12 +15,13 @@ export function WorkflowAdminPage() {
   const [newKey, setNewKey] = useState('');
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editEnabled, setEditEnabled] = useState(true);
   const [audit, setAudit] = useState<WorkflowAuditEvent[]>([]);
 
   useEffect(() => {
     let active = true;
     void workflowsApi.list()
-      .then((response) => { if (active) setItems(response.items); })
+      .then((response) => { if (active) { setItems(response.items); setEditEnabled(response.editEnabled); } })
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof ApiError ? reason.message : 'Не удалось загрузить процессы');
       })
@@ -69,9 +70,9 @@ export function WorkflowAdminPage() {
       <Typography variant="h4">Процессы</Typography>
       {error && <Alert severity="error">{error}</Alert>}
       <Stack component="form" direction={{ xs: 'column', sm: 'row' }} spacing={1} onSubmit={(event) => { event.preventDefault(); createDraft(); }}>
-        <TextField required label="Ключ процесса" value={newKey} onChange={(event) => setNewKey(event.target.value)} slotProps={{ htmlInput: { pattern: '[A-Za-z][A-Za-z0-9_-]{0,127}' } }} />
-        <TextField required label="Название процесса" value={newName} onChange={(event) => setNewName(event.target.value)} sx={{ minWidth: 260 }} />
-        <Button type="submit" variant="contained" disabled={saving}>Создать процесс</Button>
+        <TextField required disabled={!editEnabled} label="Ключ процесса" value={newKey} onChange={(event) => setNewKey(event.target.value)} slotProps={{ htmlInput: { pattern: '[A-Za-z][A-Za-z0-9_-]{0,127}' } }} />
+        <TextField required disabled={!editEnabled} label="Название процесса" value={newName} onChange={(event) => setNewName(event.target.value)} sx={{ minWidth: 260 }} />
+        <Button type="submit" variant="contained" disabled={saving || !editEnabled}>Создать процесс</Button>
       </Stack>
       {loading ? <Stack sx={{ py: 5, alignItems: 'center' }}><CircularProgress /></Stack> : (
         <TableContainer component={Paper} variant="outlined">
@@ -96,13 +97,14 @@ export function WorkflowAdminPage() {
         {draft ? <>
           <Typography color="text.secondary">Черновик: {draft.name} ({draft.key})</Typography>
           <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-            <Button variant="contained" onClick={saveDraft} disabled={saving}>Сохранить черновик</Button>
+            <Button variant="contained" onClick={saveDraft} disabled={saving || !editEnabled}>Сохранить черновик</Button>
             <Button onClick={exportDraft} disabled={saving}>Экспорт BPMN</Button>
-            <Button component="label" disabled={saving}>Импорт BPMN<input hidden type="file" accept=".bpmn,.xml,application/xml,text/xml" onChange={(event) => importDraft(event.target.files?.[0])} /></Button>
+            <Button component="label" disabled={saving || !editEnabled}>Импорт BPMN<input hidden type="file" accept=".bpmn,.xml,application/xml,text/xml" onChange={(event) => importDraft(event.target.files?.[0])} /></Button>
             <Button onClick={loadAudit} disabled={saving}>Журнал</Button>
           </Stack>
           {audit.length > 0 && <Paper variant="outlined" sx={{ p: 1 }}><Typography variant="subtitle2">Журнал процесса</Typography>{audit.map((event) => <Typography key={`${event.event}-${event.at}`} variant="body2">{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(event.at))}: {event.event} — {event.by}</Typography>)}</Paper>}
-          <CoreliaBpmnModeler bpmnXml={draftXml} onChange={setDraftXml} />
+          {!editEnabled && <Alert severity="info">Редактирование BPMN отключено конфигурацией.</Alert>}
+          <CoreliaBpmnModeler bpmnXml={draftXml} onChange={setDraftXml} readOnly={!editEnabled} />
         </> : <Alert severity="info">Создайте процесс, чтобы открыть его BPMN-черновик.</Alert>}
       </Stack>
     </Stack>
