@@ -48,6 +48,10 @@ export function WorkflowAdminPage() {
       setDraft(saved); setDraftXml(saved.bpmnXml);
     }).catch(showError).finally(() => setSaving(false));
   };
+  const openDraft = (key: string) => {
+    setSaving(true); setError(null);
+    void workflowsApi.draft(key).then((loaded) => { setDraft(loaded); setDraftXml(loaded.bpmnXml); setAudit([]); }).catch(showError).finally(() => setSaving(false));
+  };
   const exportDraft = () => {
     if (!draft) return;
     setSaving(true); setError(null);
@@ -83,7 +87,7 @@ export function WorkflowAdminPage() {
               <TableCell>Опубликовал</TableCell><TableCell align="right">Активные экземпляры</TableCell>
             </TableRow></TableHead>
             <TableBody>{items.map((workflow) => <TableRow key={workflow.key}>
-              <TableCell>{workflow.name}</TableCell><TableCell>{workflow.key}</TableCell><TableCell>{workflow.publishedVersion}</TableCell>
+              <TableCell>{workflow.draft ? <Button size="small" onClick={() => openDraft(workflow.key)}>{workflow.name}</Button> : workflow.name}</TableCell><TableCell>{workflow.key}</TableCell><TableCell>{workflow.publishedVersion}</TableCell>
               <TableCell>{workflow.draft ? 'Есть' : 'Нет'}</TableCell><TableCell>{workflow.status}</TableCell>
               <TableCell>{workflow.lastPublishedAt ? new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(workflow.lastPublishedAt)) : '—'}</TableCell>
               <TableCell>{workflow.publishedBy ?? '—'}</TableCell><TableCell align="right">{workflow.activeInstances}</TableCell>
