@@ -3,7 +3,7 @@ import { Alert, Button, CircularProgress, Paper, Stack, Table, TableBody, TableC
 import { ApiError } from '../api/client';
 import { workflowsApi } from '../api/workflows';
 import { CoreliaBpmnModeler } from '../components/workflows/CoreliaBpmnModeler';
-import type { WorkflowDefinition, WorkflowDraft } from '../types/workflow';
+import type { WorkflowAuditEvent, WorkflowDefinition, WorkflowDraft } from '../types/workflow';
 
 /** Показывает опубликованные процессы без раскрытия provider-specific данных. */
 export function WorkflowAdminPage() {
@@ -15,6 +15,7 @@ export function WorkflowAdminPage() {
   const [newKey, setNewKey] = useState('');
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [audit, setAudit] = useState<WorkflowAuditEvent[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -33,6 +34,11 @@ export function WorkflowAdminPage() {
     void workflowsApi.create(newKey, newName).then((created) => {
       setDraft(created); setDraftXml(created.bpmnXml); setNewKey(''); setNewName('');
     }).catch(showError).finally(() => setSaving(false));
+  };
+  const loadAudit = () => {
+    if (!draft) return;
+    setSaving(true); setError(null);
+    void workflowsApi.audit(draft.key).then((response) => setAudit(response.items)).catch(showError).finally(() => setSaving(false));
   };
   const saveDraft = () => {
     if (!draft) return;
@@ -93,7 +99,9 @@ export function WorkflowAdminPage() {
             <Button variant="contained" onClick={saveDraft} disabled={saving}>Сохранить черновик</Button>
             <Button onClick={exportDraft} disabled={saving}>Экспорт BPMN</Button>
             <Button component="label" disabled={saving}>Импорт BPMN<input hidden type="file" accept=".bpmn,.xml,application/xml,text/xml" onChange={(event) => importDraft(event.target.files?.[0])} /></Button>
+            <Button onClick={loadAudit} disabled={saving}>Журнал</Button>
           </Stack>
+          {audit.length > 0 && <Paper variant="outlined" sx={{ p: 1 }}><Typography variant="subtitle2">Журнал процесса</Typography>{audit.map((event) => <Typography key={`${event.event}-${event.at}`} variant="body2">{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(event.at))}: {event.event} — {event.by}</Typography>)}</Paper>}
           <CoreliaBpmnModeler bpmnXml={draftXml} onChange={setDraftXml} />
         </> : <Alert severity="info">Создайте процесс, чтобы открыть его BPMN-черновик.</Alert>}
       </Stack>

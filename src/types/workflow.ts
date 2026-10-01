@@ -20,3 +20,6 @@ export interface WorkflowDraft {
   updatedAt: string;
   updatedBy: string;
 }
+
+export interface WorkflowAuditEvent { event: string; at: string; by: string; }
+export interface WorkflowAuditResponse { items: WorkflowAuditEvent[]; }
