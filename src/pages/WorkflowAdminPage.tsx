@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Alert, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import { Alert, Button, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { ApiError } from '../api/client';
 import { workflowsApi } from '../api/workflows';
 import { CoreliaBpmnModeler } from '../components/workflows/CoreliaBpmnModeler';
-import type { WorkflowDefinition } from '../types/workflow';
+import type { WorkflowDefinition, WorkflowDraft } from '../types/workflow';
 
 /** Показывает опубликованные процессы без раскрытия provider-specific данных. */
 export function WorkflowAdminPage() {
   const [items, setItems] = useState<WorkflowDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<WorkflowDraft | null>(null);
+  const [draftXml, setDraftXml] = useState('');
+  const [newKey, setNewKey] = useState('');
+  const [newName, setNewName] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -22,10 +27,30 @@ export function WorkflowAdminPage() {
     return () => { active = false; };
   }, []);
 
+  const showError = (reason: unknown) => setError(reason instanceof ApiError ? reason.message : 'Не удалось выполнить запрос');
+  const createDraft = () => {
+    setSaving(true); setError(null);
+    void workflowsApi.create(newKey, newName).then((created) => {
+      setDraft(created); setDraftXml(created.bpmnXml); setNewKey(''); setNewName('');
+    }).catch(showError).finally(() => setSaving(false));
+  };
+  const saveDraft = () => {
+    if (!draft) return;
+    setSaving(true); setError(null);
+    void workflowsApi.saveDraft(draft.key, draft.name, draftXml).then((saved) => {
+      setDraft(saved); setDraftXml(saved.bpmnXml);
+    }).catch(showError).finally(() => setSaving(false));
+  };
+
   return (
     <Stack spacing={2}>
       <Typography variant="h4">Процессы</Typography>
       {error && <Alert severity="error">{error}</Alert>}
+      <Stack component="form" direction={{ xs: 'column', sm: 'row' }} spacing={1} onSubmit={(event) => { event.preventDefault(); createDraft(); }}>
+        <TextField required label="Ключ процесса" value={newKey} onChange={(event) => setNewKey(event.target.value)} slotProps={{ htmlInput: { pattern: '[A-Za-z][A-Za-z0-9_-]{0,127}' } }} />
+        <TextField required label="Название процесса" value={newName} onChange={(event) => setNewName(event.target.value)} sx={{ minWidth: 260 }} />
+        <Button type="submit" variant="contained" disabled={saving}>Создать процесс</Button>
+      </Stack>
       {loading ? <Stack sx={{ py: 5, alignItems: 'center' }}><CircularProgress /></Stack> : (
         <TableContainer component={Paper} variant="outlined">
           <Table size="small" aria-label="Опубликованные процессы">
@@ -46,8 +71,11 @@ export function WorkflowAdminPage() {
       )}
       <Stack spacing={1}>
         <Typography variant="h5">Редактор BPMN</Typography>
-        <Typography color="text.secondary">Новый черновик будет сохранён через draft API на следующем шаге.</Typography>
-        <CoreliaBpmnModeler />
+        {draft ? <>
+          <Typography color="text.secondary">Черновик: {draft.name} ({draft.key})</Typography>
+          <Stack direction="row"><Button variant="contained" onClick={saveDraft} disabled={saving}>Сохранить черновик</Button></Stack>
+          <CoreliaBpmnModeler bpmnXml={draftXml} onChange={setDraftXml} />
+        </> : <Alert severity="info">Создайте процесс, чтобы открыть его BPMN-черновик.</Alert>}
       </Stack>
     </Stack>
   );

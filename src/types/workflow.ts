@@ -12,3 +12,11 @@ export interface WorkflowDefinition {
 export interface WorkflowDefinitionsResponse {
   items: WorkflowDefinition[];
 }
+
+export interface WorkflowDraft {
+  key: string;
+  name: string;
+  bpmnXml: string;
+  updatedAt: string;
+  updatedBy: string;
+}

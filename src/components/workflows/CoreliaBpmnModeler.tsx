@@ -8,11 +8,6 @@ import '@bpmn-io/properties-panel/dist/assets/properties-panel.css';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
 
-const emptyProcess = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:corelia="urn:corelia:bpmn" targetNamespace="urn:corelia:bpmn">
-  <bpmn:process id="draft" name="Новый процесс" isExecutable="true"><bpmn:startEvent id="start" /></bpmn:process>
-</bpmn:definitions>`;
-
 const coreliaModdle = {
   name: 'Corelia',
   uri: 'urn:corelia:bpmn',
@@ -55,23 +50,45 @@ class CoreliaPaletteProvider {
 const coreliaPaletteModule = { paletteProvider: ['type', CoreliaPaletteProvider] };
 
 /** Встраивает BPMN editor и стандартную properties panel; данные подключаются через draft API. */
-export function CoreliaBpmnModeler() {
+interface CoreliaBpmnModelerProps {
+  bpmnXml: string;
+  onChange?: (bpmnXml: string) => void;
+  readOnly?: boolean;
+}
+
+export function CoreliaBpmnModeler({ bpmnXml, onChange, readOnly = false }: CoreliaBpmnModelerProps) {
   const canvas = useRef<HTMLDivElement>(null);
   const properties = useRef<HTMLDivElement>(null);
+  const modeler = useRef<BpmnModeler | null>(null);
+  const importedXml = useRef('');
 
   useEffect(() => {
     if (!canvas.current || !properties.current) return undefined;
-    const modeler = new BpmnModeler({
+    const instance = new BpmnModeler({
       container: canvas.current,
       propertiesPanel: { parent: properties.current },
       additionalModules: [BpmnPropertiesPanelModule, BpmnPropertiesProviderModule, coreliaPaletteModule],
       moddleExtensions: { corelia: coreliaModdle },
     });
-    void modeler.importXML(emptyProcess).then(() => (modeler.get('canvas') as { zoom: (value: string) => void }).zoom('fit-viewport'));
-    return () => modeler.destroy();
+    modeler.current = instance;
+    const eventBus = instance.get('eventBus') as { on: (event: string, listener: () => void) => void };
+    eventBus.on('commandStack.changed', () => {
+      if (!onChange) return;
+      void instance.saveXML({ format: true }).then(({ xml }) => {
+        if (xml) { importedXml.current = xml; onChange(xml); }
+      });
+    });
+    return () => { modeler.current = null; instance.destroy(); };
   }, []);
 
-  return <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 32%)', minHeight: 520, border: '1px solid #d9dee7' }}>
+  useEffect(() => {
+    const instance = modeler.current;
+    if (!instance || !bpmnXml || bpmnXml === importedXml.current) return;
+    importedXml.current = bpmnXml;
+    void instance.importXML(bpmnXml).then(() => (instance.get('canvas') as { zoom: (value: string) => void }).zoom('fit-viewport'));
+  }, [bpmnXml]);
+
+  return <div aria-readonly={readOnly} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 32%)', minHeight: 520, border: '1px solid #d9dee7' }}>
     <div ref={canvas} />
     <div ref={properties} style={{ borderLeft: '1px solid #d9dee7', overflow: 'auto' }} />
   </div>;
