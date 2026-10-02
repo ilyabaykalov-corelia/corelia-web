@@ -50,7 +50,7 @@ import { displayAttribute, validateDocumentAttributes } from '../features/docume
 import { documentsApi } from '../api/documents';
 import { clearCurrentDocument, completeDocumentApproval, deleteDocumentAttachment, downloadDocumentAttachment, fetchDocumentById, fetchDocumentTypes, replaceDocumentFile, updateDocument, uploadDocumentFiles } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { AttributeValue, Attachment, DocumentHistoryEntry, DocumentRecord, DocumentVersion, DocumentWorkflowAction, UpdateDocumentRequest } from '../types/document';
+import { formFields, type AttributeValue, type Attachment, type DocumentHistoryEntry, type DocumentRecord, type DocumentVersion, type DocumentWorkflowAction, type UpdateDocumentRequest } from '../types/document';
 import { formatDateTime } from '../utils/format';
 
 type ProcessStepState = 'done' | 'active' | 'wait' | 'rejected';
@@ -485,13 +485,13 @@ export function DocumentDetailPage() {
 							<Stack spacing={ 1.5 }>
 								{ validationError && <Alert severity="error">{ validationError }</Alert> }
 								<Box sx={ { display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 } }>
-                                    {definition && <DocumentFields definition={definition} value={form.attributes} onChange={updateField} disabled={saving} />}
+                                    {definition && <DocumentFields definition={definition} fields={formFields(definition, 'editCard')} value={form.attributes} onChange={updateField} disabled={saving} />}
 								</Box>
 							</Stack>
 						) : (
 							<>
 								<AttributeRow label="Вид документа">{ documentTypeName }</AttributeRow>
-                                {(definition?.ui.fields ?? Object.keys(document.attributes)).map(name => <AttributeRow key={name} label={definition?.schema.properties[name]?.title || name}>{displayAttribute(document.attributes[name], definition?.schema.properties[name])}</AttributeRow>)}
+                                {(definition ? formFields(definition, 'viewCard') : Object.keys(document.attributes)).map(name => <AttributeRow key={name} label={definition?.schema.properties[name]?.title || name}>{displayAttribute(document.attributes[name], definition?.schema.properties[name])}</AttributeRow>)}
 								<AttributeRow label="Дата создания">{ document.createdAt ? formatDateTime(document.createdAt) : undefined }</AttributeRow>
 								<AttributeRow label="Кто создал">{ document.createdBy }</AttributeRow>
 							</>

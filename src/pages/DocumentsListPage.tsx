@@ -6,7 +6,7 @@ import { DocumentStatusChip } from '../components/DocumentStatusChip';
 import { fetchDocuments, fetchDocumentTypes, setFilters } from '../store/documentsSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { displayAttribute } from '../features/documents/utils/documentValidation';
-import type { DocumentSearchRequest } from '../types/document';
+import { columnField, columnLabel, type DocumentSearchRequest } from '../types/document';
 
 export function DocumentsListPage() {
   const navigate = useNavigate();
@@ -57,16 +57,19 @@ export function DocumentsListPage() {
       {sort && <Typography variant="caption">Сортировка текущей страницы</Typography>}
       <TableContainer><Table size="small"><TableHead><TableRow>
         <TableCell>Документ</TableCell>
-        {columns.map(name => <TableCell key={name}>{displayedDefinition?.ui.sortFields.includes(name)
-          ? <TableSortLabel active={sort?.field === name} direction={sort?.direction ?? 'asc'} onClick={() => setSort({ field: name, direction: sort?.field === name && sort.direction === 'asc' ? 'desc' : 'asc' })}>{displayedDefinition.schema.properties[name].title || name}</TableSortLabel>
-          : displayedDefinition?.schema.properties[name].title || name}</TableCell>)}
+        {columns.map(column => {
+          const name = columnField(column);
+          return <TableCell key={name}>{displayedDefinition?.ui.sortFields.includes(name)
+            ? <TableSortLabel active={sort?.field === name} direction={sort?.direction ?? 'asc'} onClick={() => setSort({ field: name, direction: sort?.field === name && sort.direction === 'asc' ? 'desc' : 'asc' })}>{columnLabel(displayedDefinition, column)}</TableSortLabel>
+            : columnLabel(displayedDefinition, column)}</TableCell>;
+        })}
         {!displayedDefinition && <TableCell>Реквизиты</TableCell>}<TableCell>Статус</TableCell>
       </TableRow></TableHead><TableBody>{displayed.map(document => {
         const type = documentTypes.find(item => item.id === document.documentTypeId);
         return <TableRow key={document.id} hover>
           <TableCell><Link component={RouterLink} to={`/documents/${encodeURIComponent(document.id)}`}>{document.documentType}</Link><Typography variant="caption" sx={{ display: 'block' }}>{document.id}</Typography></TableCell>
-          {columns.map(name => <TableCell key={name}>{displayAttribute(document.attributes[name], type?.schema.properties[name])}</TableCell>)}
-          {!displayedDefinition && <TableCell>{(type?.ui.columns ?? Object.keys(document.attributes)).map(name => <Typography variant="body2" key={name}>{type?.schema.properties[name]?.title || name}: {displayAttribute(document.attributes[name], type?.schema.properties[name])}</Typography>)}</TableCell>}
+          {columns.map(column => { const name = columnField(column); return <TableCell key={name}>{displayAttribute(document.attributes[name], type?.schema.properties[name])}</TableCell>; })}
+          {!displayedDefinition && <TableCell>{(type?.ui.columns ?? Object.keys(document.attributes)).map(column => { const name = columnField(column); return <Typography variant="body2" key={name}>{columnLabel(type, column)}: {displayAttribute(document.attributes[name], type?.schema.properties[name])}</Typography>; })}</TableCell>}
           <TableCell><DocumentStatusChip status={document.status} label={document.documentStatus} /></TableCell>
         </TableRow>;
       })}</TableBody></Table></TableContainer>

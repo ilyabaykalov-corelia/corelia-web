@@ -20,15 +20,33 @@ export interface DocumentWorkflowAction {
   result?: Record<string, unknown>;
 }
 
+export interface DocumentFormMetadata {
+  fields: string[];
+  label?: string;
+  sections?: unknown[];
+  tabs?: unknown[];
+}
+export interface DocumentTableColumn { field: string; label?: string }
+
 export interface DocumentType {
   id: string;
   name: string;
   schema: { type: 'object'; properties: Record<string, AttributeDefinition>; required?: string[] };
-  ui: { fields: string[]; columns: string[]; searchFields: string[]; sortFields: string[]; dateField?: string; masks?: Record<string, string>; initialValues?: Record<string, AttributeValue> };
+  ui: {
+    fields: string[]; columns: Array<string | DocumentTableColumn>; searchFields: string[]; sortFields: string[];
+    dateField?: string; masks?: Record<string, string>; initialValues?: Record<string, AttributeValue>;
+    createForm?: DocumentFormMetadata; viewCard?: DocumentFormMetadata; editCard?: DocumentFormMetadata;
+    sections?: unknown[]; tabs?: unknown[]; indexHints?: string[];
+  };
   statuses: Record<string, string>;
   initialAttachmentRequired: boolean;
-  attachments: { enabled: boolean; initialRequired: boolean; maxCount: number; maxSizeBytes: number; allowedExtensions: string[] };
+  attachments: { enabled: boolean; initialRequired: boolean; maxCount: number; maxSizeBytes: number; allowedExtensions: string[]; allowedMimeTypes: string[] };
 }
+
+export const formFields = (definition: DocumentType, form: 'createForm' | 'viewCard' | 'editCard') => definition.ui[form]?.fields ?? definition.ui.fields;
+export const columnField = (column: string | DocumentTableColumn) => typeof column === 'string' ? column : column.field;
+export const columnLabel = (definition: DocumentType | undefined, column: string | DocumentTableColumn) =>
+  typeof column === 'object' && column.label ? column.label : definition?.schema.properties[columnField(column)]?.title || columnField(column);
 
 export interface Attachment {
   id: string;
