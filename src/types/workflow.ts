@@ -24,3 +24,11 @@ export interface WorkflowDraft {
 
 export interface WorkflowAuditEvent { event: string; at: string; by: string; }
 export interface WorkflowAuditResponse { items: WorkflowAuditEvent[]; }
+export interface WorkflowValidationError { code: string; message: string; }
+export interface WorkflowValidationResponse { valid: boolean; errors: WorkflowValidationError[]; }
+export interface WorkflowPublishResponse extends WorkflowValidationResponse {
+  published: boolean;
+  key?: string;
+  version?: number;
+  publishedAt?: string;
+}

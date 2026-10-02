@@ -3,7 +3,7 @@ import { Alert, Button, CircularProgress, Paper, Stack, Table, TableBody, TableC
 import { ApiError } from '../api/client';
 import { workflowsApi } from '../api/workflows';
 import { CoreliaBpmnModeler } from '../components/workflows/CoreliaBpmnModeler';
-import type { WorkflowAuditEvent, WorkflowDefinition, WorkflowDraft } from '../types/workflow';
+import type { WorkflowAuditEvent, WorkflowDefinition, WorkflowDraft, WorkflowValidationError } from '../types/workflow';
 
 /** Показывает опубликованные процессы без раскрытия provider-specific данных. */
 export function WorkflowAdminPage() {
@@ -17,16 +17,16 @@ export function WorkflowAdminPage() {
   const [saving, setSaving] = useState(false);
   const [editEnabled, setEditEnabled] = useState(true);
   const [audit, setAudit] = useState<WorkflowAuditEvent[]>([]);
+  const [validationErrors, setValidationErrors] = useState<WorkflowValidationError[]>([]);
+  const [validationSuccess, setValidationSuccess] = useState<string | null>(null);
 
+  const reloadDefinitions = () => workflowsApi.list().then((response) => {
+    setItems(response.items); setEditEnabled(response.editEnabled);
+  });
   useEffect(() => {
-    let active = true;
-    void workflowsApi.list()
-      .then((response) => { if (active) { setItems(response.items); setEditEnabled(response.editEnabled); } })
-      .catch((reason: unknown) => {
-        if (active) setError(reason instanceof ApiError ? reason.message : 'Не удалось загрузить процессы');
-      })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    void reloadDefinitions().catch((reason: unknown) => {
+      setError(reason instanceof ApiError ? reason.message : 'Не удалось загрузить процессы');
+    }).finally(() => setLoading(false));
   }, []);
 
   const showError = (reason: unknown) => setError(reason instanceof ApiError ? reason.message : 'Не удалось выполнить запрос');
@@ -50,7 +50,31 @@ export function WorkflowAdminPage() {
   };
   const openDraft = (key: string) => {
     setSaving(true); setError(null);
-    void workflowsApi.draft(key).then((loaded) => { setDraft(loaded); setDraftXml(loaded.bpmnXml); setAudit([]); }).catch(showError).finally(() => setSaving(false));
+    void workflowsApi.draft(key).then((loaded) => { setDraft(loaded); setDraftXml(loaded.bpmnXml); setAudit([]); setValidationErrors([]); setValidationSuccess(null); }).catch(showError).finally(() => setSaving(false));
+  };
+  const validateDraft = () => {
+    if (!draft) return;
+    setSaving(true); setError(null); setValidationErrors([]); setValidationSuccess(null);
+    void workflowsApi.saveDraft(draft.key, draft.name, draftXml).then((saved) => {
+      setDraft(saved); return workflowsApi.validateDraft(saved.key);
+    }).then((result) => {
+      setValidationErrors(result.errors);
+      if (result.valid) setValidationSuccess('BPMN-процесс успешно проверен и готов к публикации.');
+    }).catch(showError).finally(() => setSaving(false));
+  };
+  const publishDraft = () => {
+    if (!draft) return;
+    setSaving(true); setError(null); setValidationErrors([]); setValidationSuccess(null);
+    void workflowsApi.saveDraft(draft.key, draft.name, draftXml).then((saved) => {
+      setDraft(saved); return workflowsApi.publishDraft(saved.key);
+    }).then((result) => {
+      setValidationErrors(result.errors);
+      if (result.published) {
+        setValidationSuccess(`Процесс опубликован: версия ${result.version}.`);
+        return reloadDefinitions();
+      }
+      return undefined;
+    }).catch(showError).finally(() => setSaving(false));
   };
   const exportDraft = () => {
     if (!draft) return;
@@ -102,11 +126,15 @@ export function WorkflowAdminPage() {
           <Typography color="text.secondary">Черновик: {draft.name} ({draft.key})</Typography>
           <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
             <Button variant="contained" onClick={saveDraft} disabled={saving || !editEnabled}>Сохранить черновик</Button>
+            <Button onClick={validateDraft} disabled={saving || !editEnabled}>Проверить BPMN</Button>
+            <Button onClick={publishDraft} disabled={saving || !editEnabled}>Опубликовать</Button>
             <Button onClick={exportDraft} disabled={saving}>Экспорт BPMN</Button>
             <Button component="label" disabled={saving || !editEnabled}>Импорт BPMN<input hidden type="file" accept=".bpmn,.xml,application/xml,text/xml" onChange={(event) => importDraft(event.target.files?.[0])} /></Button>
             <Button onClick={loadAudit} disabled={saving}>Журнал</Button>
           </Stack>
           {audit.length > 0 && <Paper variant="outlined" sx={{ p: 1 }}><Typography variant="subtitle2">Журнал процесса</Typography>{audit.map((event) => <Typography key={`${event.event}-${event.at}`} variant="body2">{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(event.at))}: {event.event} — {event.by}</Typography>)}</Paper>}
+          {validationSuccess && <Alert severity="success">{validationSuccess}</Alert>}
+          {validationErrors.length > 0 && <Alert severity="error">{validationErrors.map((item) => <Typography key={`${item.code}-${item.message}`} variant="body2">{item.message}</Typography>)}</Alert>}
           {!editEnabled && <Alert severity="info">Редактирование BPMN отключено конфигурацией.</Alert>}
           <CoreliaBpmnModeler bpmnXml={draftXml} onChange={setDraftXml} readOnly={!editEnabled} />
         </> : <Alert severity="info">Создайте процесс, чтобы открыть его BPMN-черновик.</Alert>}
