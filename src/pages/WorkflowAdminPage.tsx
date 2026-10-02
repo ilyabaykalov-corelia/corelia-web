@@ -58,7 +58,7 @@ export function WorkflowAdminPage() {
     void workflowsApi.saveDraft(draft.key, draft.name, draftXml).then((saved) => {
       setDraft(saved); return workflowsApi.validateDraft(saved.key);
     }).then((result) => {
-      setValidationErrors(result.errors);
+      setValidationErrors(result.errors ?? []);
       if (result.valid) setValidationSuccess('BPMN-процесс успешно проверен и готов к публикации.');
     }).catch(showError).finally(() => setSaving(false));
   };
@@ -68,7 +68,7 @@ export function WorkflowAdminPage() {
     void workflowsApi.saveDraft(draft.key, draft.name, draftXml).then((saved) => {
       setDraft(saved); return workflowsApi.publishDraft(saved.key);
     }).then((result) => {
-      setValidationErrors(result.errors);
+      setValidationErrors(result.errors ?? []);
       if (result.published) {
         setValidationSuccess(`Процесс опубликован: версия ${result.version}.`);
         return reloadDefinitions();
