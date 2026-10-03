@@ -13,6 +13,11 @@ Vite слушает все интерфейсы и по умолчанию ис�
 в browser bundle, поэтому секреты в них запрещены. Для production SPA нужен
 fallback web-сервера на `index.html` и корректный CORS gateway.
 
+Для customer-specific branding сначала выполните из корня Corelia
+`./corelia.sh build --config-dir <package> --release-name <release>`.
+Собранный `/branding.json` и ресурсы остаются в публичной директории при
+`npm run dev`; отдельная переменная окружения для запуска dev-сервера не нужна.
+
 ```bash
 npm run lint
 npm test

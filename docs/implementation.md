@@ -28,6 +28,11 @@ record, а не преобразуются в фиксированную мод�
 ## Branding и BPMN
 
 До монтирования React `main.tsx` загружает `/branding.json`; при ошибке
-используются defaults. Workflow admin работает с draft/validate/publish/
+используются defaults. При `./corelia.sh build --config-dir ...` скрипт сборки
+передаёт compiled runtime configuration во frontend: `branding/branding.json`
+становится `/branding.json`, а файлы из `branding/assets/` — публичными
+ресурсами `/branding/`. Это устраняет зависимость frontend от имени customer
+package; абсолютные локальные пути к ресурсам нормализуются в `/branding/`.
+Workflow admin работает с draft/validate/publish/
 import/export/audit endpoint и передаёт BPMN XML серверу; validation и
 deployment принадлежат workflow-service.
