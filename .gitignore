@@ -8,3 +8,4 @@ public/branding/
 .DS_Store
 *.local
 .env
+.env_*
