@@ -4,6 +4,7 @@ export type DocumentWorkflowActionCode = string;
 export type DocumentStatus = string;
 export type AttributeValue = string | number | boolean | null;
 export type DocumentAttributes = Record<string, AttributeValue>;
+/** Ограниченный UI-профиль schema атрибута, поставляемый server-side configuration. */
 export interface AttributeDefinition {
   type: 'string' | 'integer' | 'number' | 'boolean';
   title?: string; description?: string; format?: 'date';
@@ -28,6 +29,10 @@ export interface DocumentFormMetadata {
 }
 export interface DocumentTableColumn { field: string; label?: string }
 
+/**
+ * Описание типа из gateway catalog. Клиент использует metadata для rendering,
+ * но server остаётся владельцем validation, access checks и transitions.
+ */
 export interface DocumentType {
   id: string;
   name: string;
@@ -43,6 +48,7 @@ export interface DocumentType {
   attachments: { enabled: boolean; initialRequired: boolean; maxCount: number; maxSizeBytes: number; allowedExtensions: string[]; allowedMimeTypes: string[] };
 }
 
+/** Возвращает поля специальной формы либо общий fallback `ui.fields`. */
 export const formFields = (definition: DocumentType, form: 'createForm' | 'viewCard' | 'editCard') => definition.ui[form]?.fields ?? definition.ui.fields;
 export const columnField = (column: string | DocumentTableColumn) => typeof column === 'string' ? column : column.field;
 export const columnLabel = (definition: DocumentType | undefined, column: string | DocumentTableColumn) =>
@@ -78,6 +84,7 @@ export interface DocumentHistoryEntry {
   attachment?: { attachmentId: string; oldFileName?: string; oldVersion?: number; newFileName?: string; newVersion?: number };
 }
 
+/** Актуальный или исторический снимок, нормализованный из public API gateway. */
 export interface DocumentRecord {
   version?: number;
   currentVersion?: number;
@@ -140,6 +147,7 @@ export interface CreateDocumentRequest {
   attributes: DocumentAttributes;
 }
 
+/** PATCH-контракт с optimistic-locking metadata, полученной при чтении карточки. */
 export interface UpdateDocumentRequest extends CreateDocumentRequest {
   expectedVersion?: number;
   changeToken?: string;

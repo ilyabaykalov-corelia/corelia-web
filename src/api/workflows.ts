@@ -4,6 +4,7 @@ import type { WorkflowDraft } from '../types/workflow';
 
 const apiRoot = '/api/core/v1';
 
+/** Клиент workflow-admin endpoint; BPMN validation и deployment выполняет backend. */
 export const workflowsApi = {
   list: () => apiClient.get<WorkflowDefinitionsResponse>(`${apiRoot}/admin/workflows`),
   create: (key: string, name: string) => apiClient.post<WorkflowDraft>(`${apiRoot}/admin/workflows`, { key, name }),

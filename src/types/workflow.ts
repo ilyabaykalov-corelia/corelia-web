@@ -1,3 +1,4 @@
+/** Опубликованное либо draft workflow definition без Flowable-specific DTO. */
 export interface WorkflowDefinition {
   name: string;
   key: string;

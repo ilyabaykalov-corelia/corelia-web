@@ -21,11 +21,13 @@ const publish = (): AuthSession => {
   setStoredAuthSession(value);
   return value;
 };
+/** Инициализирует SSO без немедленного redirect; возвращает `null` для гостя. */
 export const initializeKeycloak = async () => {
   if (fixture) { setStoredAuthSession(fixtureSession); return fixtureSession; }
   return (await keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false })) ? publish() : null;
 };
 export const loginWithKeycloak = (redirectUri: string) => fixture ? Promise.resolve() : keycloak.login({ redirectUri });
+/** Обновляет token при необходимости и очищает volatile session при неуспехе. */
 export const refreshKeycloakToken = async () => {
   if (fixture) return fixtureSession;
   try { return (await keycloak.updateToken(30)) || keycloak.token ? publish() : null; }
