@@ -88,6 +88,7 @@ export function CoreliaBpmnModeler({ bpmnXml, onChange, readOnly = false }: Core
       moddleExtensions: { corelia: coreliaModdle, flowable: flowableModdle },
     });
     modeler.current = instance;
+    importedXml.current = '';
     const eventBus = instance.get('eventBus') as { on: (event: string, listener: (event: any) => void) => void };
     eventBus.on('commandStack.changed', () => {
       if (!onChange) return;

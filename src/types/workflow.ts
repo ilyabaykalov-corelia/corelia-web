@@ -23,6 +23,13 @@ export interface WorkflowDraft {
   updatedBy: string;
 }
 
+export interface WorkflowView {
+  key: string;
+  name: string;
+  bpmnXml: string;
+  readOnly: boolean;
+}
+
 export interface WorkflowAuditEvent { event: string; at: string; by: string; }
 export interface WorkflowAuditResponse { items: WorkflowAuditEvent[]; }
 export interface WorkflowValidationError { code: string; message: string; }

@@ -35,4 +35,6 @@ record, а не преобразуются в фиксированную мод�
 package; абсолютные локальные пути к ресурсам нормализуются в `/branding/`.
 Workflow admin работает с draft/validate/publish/
 import/export/audit endpoint и передаёт BPMN XML серверу; validation и
-deployment принадлежат workflow-service.
+deployment принадлежат workflow-service. Процессы из customer configuration
+и published definitions без связанного draft открываются через `/view` в том
+же BPMN-компоненте, но без возможности изменения.
