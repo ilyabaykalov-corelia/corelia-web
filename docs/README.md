@@ -12,4 +12,8 @@
 Документы описывают текущий код. Установка соответствующей версии на стенде и результаты прикладных проверок требуют отдельного подтверждения. Историю изменений искать в Git, а не считать этот обзор журналом авторства.
 # Branding
 
-Клиент использует defaults из `src/branding.default.json` и необязательный внешний input `CORELIA_BRANDING_DIR`. Без него `npm run build` создаёт универсальный Corelia frontend; явная невалидная папка или битый JSON завершают build с диагностикой. Полный формат и merge semantics: [../../docs/branding.md](../../docs/branding.md).
+Клиент всегда собирается как универсальный Corelia frontend. В runtime он читает
+`/branding.json`, который static runtime должен предоставлять из активного
+customer configuration release; при недоступности файла используются defaults
+из `src/branding.default.json`. Формат описан в
+[../../docs/branding.md](../../docs/branding.md).
