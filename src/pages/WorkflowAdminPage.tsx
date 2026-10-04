@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { ApiError } from '../api/client';
 import { workflowsApi } from '../api/workflows';
+import { FormField } from '../components/common/FormField';
 import { CoreliaBpmnModeler } from '../components/workflows/CoreliaBpmnModeler';
 import type { WorkflowAuditEvent, WorkflowDefinition, WorkflowDraft, WorkflowValidationError, WorkflowView } from '../types/workflow';
 
@@ -102,9 +103,13 @@ export function WorkflowAdminPage() {
       <Typography variant="h4">Процессы</Typography>
       {error && <Alert severity="error">{error}</Alert>}
       <Stack component="form" direction={{ xs: 'column', sm: 'row' }} spacing={1} onSubmit={(event) => { event.preventDefault(); createDraft(); }}>
-        <TextField required disabled={!editEnabled} label="Ключ процесса" value={newKey} onChange={(event) => setNewKey(event.target.value)} slotProps={{ htmlInput: { pattern: '[A-Za-z][A-Za-z0-9_-]{0,127}' } }} />
-        <TextField required disabled={!editEnabled} label="Название процесса" value={newName} onChange={(event) => setNewName(event.target.value)} sx={{ minWidth: 260 }} />
-        <Button type="submit" variant="contained" disabled={saving || !editEnabled}>Создать процесс</Button>
+        <FormField label="Ключ процесса" required>
+          <TextField required size="small" disabled={!editEnabled} value={newKey} onChange={(event) => setNewKey(event.target.value)} slotProps={{ htmlInput: { pattern: '[A-Za-z][A-Za-z0-9_-]{0,127}' } }} />
+        </FormField>
+        <FormField label="Название процесса" required>
+          <TextField required size="small" disabled={!editEnabled} value={newName} onChange={(event) => setNewName(event.target.value)} sx={{ minWidth: 260 }} />
+        </FormField>
+        <Button type="submit" variant="contained" disabled={saving || !editEnabled} sx={{ alignSelf: { xs: 'stretch', sm: 'flex-end' } }}>Создать процесс</Button>
       </Stack>
       {loading ? <Stack sx={{ py: 5, alignItems: 'center' }}><CircularProgress /></Stack> : (
         <TableContainer component={Paper} variant="outlined">
