@@ -1,7 +1,8 @@
 {
   "title": "Corelia",
   "theme": {
-    "primaryColor": "#3477d4"
+    "primaryColor": "#3477d4",
+    "backgroundColor": "#fffdf8"
   },
   "assets": {
     "logo": "/logo.svg",
