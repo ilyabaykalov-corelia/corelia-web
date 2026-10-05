@@ -133,9 +133,9 @@ function renderRuntimeOverlays(modeler: BpmnModeler, activityStats: WorkflowActi
     const badge = document.createElement('button');
     badge.type = 'button'; badge.textContent = String(stat.activeInstances); badge.title = `Активные документы: ${stat.activeInstances}`;
     badge.setAttribute('aria-label', `${stat.activityId}: активные документы ${stat.activeInstances}`);
-    badge.style.cssText = 'min-width:22px;height:22px;border:0;border-radius:11px;background:#1565c0;color:#fff;font:600 12px sans-serif;cursor:pointer;pointer-events:auto;';
+    badge.style.cssText = 'width:64px;height:64px;padding:0;border:0;border-radius:50%;background:#159947;color:#fff;font:600 40px/1 sans-serif;cursor:pointer;box-shadow:0 1px 2px rgb(0 0 0 / 18%);pointer-events:auto;';
     badge.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); onActivityClick?.(stat.activityId); });
-    overlays.add(element, 'corelia-runtime', { position: { bottom: -8, right: -8 }, html: badge });
+    overlays.add(element, 'corelia-runtime', { position: { bottom: -32, right: -32 }, html: badge });
   });
 }
 
