@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTheme } from '@mui/material/styles';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import {
   BpmnPropertiesPanelModule,
@@ -76,6 +77,7 @@ interface CoreliaBpmnModelerProps {
 }
 
 export function CoreliaBpmnModeler({ bpmnXml, onChange, readOnly = false, activityStats = [], onActivityClick }: CoreliaBpmnModelerProps) {
+  const primaryColor = useTheme().palette.primary.main;
   const canvas = useRef<HTMLDivElement>(null);
   const properties = useRef<HTMLDivElement>(null);
   const settings = useRef<HTMLDivElement>(null);
@@ -109,13 +111,13 @@ export function CoreliaBpmnModeler({ bpmnXml, onChange, readOnly = false, activi
     importedXml.current = bpmnXml;
     void instance.importXML(bpmnXml).then(() => {
       (instance.get('canvas') as { zoom: (value: string) => void }).zoom('fit-viewport');
-      renderRuntimeOverlays(instance, activityStats, onActivityClick);
+      renderRuntimeOverlays(instance, activityStats, onActivityClick, primaryColor);
     });
-  }, [bpmnXml]);
+  }, [bpmnXml, primaryColor]);
 
   useEffect(() => {
-    if (modeler.current) renderRuntimeOverlays(modeler.current, activityStats, onActivityClick);
-  }, [activityStats, onActivityClick]);
+    if (modeler.current) renderRuntimeOverlays(modeler.current, activityStats, onActivityClick, primaryColor);
+  }, [activityStats, onActivityClick, primaryColor]);
 
   return <div aria-readonly={readOnly} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 32%)', minHeight: 520, border: '1px solid #d9dee7' }}>
     <div ref={canvas} style={{ pointerEvents: readOnly ? 'none' : undefined }} />
@@ -123,7 +125,7 @@ export function CoreliaBpmnModeler({ bpmnXml, onChange, readOnly = false, activi
   </div>;
 }
 
-function renderRuntimeOverlays(modeler: BpmnModeler, activityStats: WorkflowActivityRuntime[], onActivityClick?: (activityId: string) => void) {
+function renderRuntimeOverlays(modeler: BpmnModeler, activityStats: WorkflowActivityRuntime[], onActivityClick: ((activityId: string) => void) | undefined, primaryColor: string) {
   const overlays = modeler.get('overlays') as { add: (element: any, type: string, options: any) => void; remove: (filter: { type: string }) => void };
   const registry = modeler.get('elementRegistry') as { get: (id: string) => any };
   overlays.remove({ type: 'corelia-runtime' });
@@ -133,7 +135,8 @@ function renderRuntimeOverlays(modeler: BpmnModeler, activityStats: WorkflowActi
     const badge = document.createElement('button');
     badge.type = 'button'; badge.textContent = String(stat.activeInstances); badge.title = `Активные документы: ${stat.activeInstances}`;
     badge.setAttribute('aria-label', `${stat.activityId}: активные документы ${stat.activeInstances}`);
-    badge.style.cssText = 'width:24px;height:24px;padding:0;border:0;border-radius:50%;background:#159947;color:#fff;font:600 16px/1 sans-serif;cursor:pointer;box-shadow:0 1px 2px rgb(0 0 0 / 18%);pointer-events:auto;';
+    badge.style.cssText = 'width:24px;height:24px;padding:0;border:0;border-radius:50%;color:#fff;font:600 16px/1 sans-serif;cursor:pointer;box-shadow:0 1px 2px rgb(0 0 0 / 18%);pointer-events:auto;';
+    badge.style.backgroundColor = primaryColor;
     badge.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); onActivityClick?.(stat.activityId); });
     overlays.add(element, 'corelia-runtime', { position: { bottom: 12, right: 12 }, html: badge });
   });
