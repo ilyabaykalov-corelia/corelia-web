@@ -8,4 +8,5 @@ public/branding/
 .DS_Store
 *.local
 .env
-.env_*
+.env.*
+!.env.example
