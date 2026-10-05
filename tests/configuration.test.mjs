@@ -141,3 +141,24 @@ test('attachment list renders a known uploadedAt value', () => {
   assert.ok(html.includes(formatDateTime(uploadedAt)));
   assert.ok(!html.includes('• — •'));
 });
+
+test('workflow API loads runtime badges and active documents by BPMN activity ID', async () => {
+  const { workflowsApi } = await server.ssrLoadModule('/src/api/workflows.ts');
+  const oldFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    const body = String(url).includes('/runtime')
+      ? { activeInstances: 1, activities: [{ activityId: 'UserTask_CheckDocument', activeInstances: 1 }] }
+      : { items: [{ id: 'document-1', typeCode: 'PDS_CONTRACT', typeName: 'Договор ПДС', status: 'IN_WORK', statusLabel: 'В работе', createdAt: null }], total: 1 };
+    return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const runtime = await workflowsApi.runtime('pds_contract_process');
+    const documents = await workflowsApi.activeDocuments('pds_contract_process', 'UserTask_CheckDocument');
+    assert.equal(runtime.activities[0].activityId, 'UserTask_CheckDocument');
+    assert.equal(documents.items[0].id, 'document-1');
+    assert.ok(calls[0].endsWith('/admin/workflows/pds_contract_process/runtime'));
+    assert.ok(calls[1].endsWith('/admin/workflows/pds_contract_process/active-documents?activityId=UserTask_CheckDocument'));
+  } finally { globalThis.fetch = oldFetch; }
+});

@@ -38,3 +38,10 @@ import/export/audit endpoint и передаёт BPMN XML серверу; valida
 deployment принадлежат workflow-service. Процессы из customer configuration
 и published definitions без связанного draft открываются через `/view` в том
 же BPMN-компоненте, но без возможности изменения.
+
+Для опубликованного процесса UI получает runtime-статистику через
+`/admin/workflows/{key}/runtime` и размещает badge на BPMN element с тем же
+`activityId`. Нажатие badge или значения «Активные экземпляры» открывает список
+доступных документов через `/active-documents`; документ открывается в новой
+вкладке. Счётчики и список формирует backend после проверки permissions, UI не
+подменяет эти проверки.

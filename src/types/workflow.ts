@@ -30,6 +30,18 @@ export interface WorkflowView {
   readOnly: boolean;
 }
 
+export interface WorkflowActivityRuntime { activityId: string; activeInstances: number; }
+export interface WorkflowRuntime { activeInstances: number; activities: WorkflowActivityRuntime[]; }
+export interface WorkflowActiveDocument {
+  id: string;
+  typeCode: string;
+  typeName: string;
+  status: string;
+  statusLabel: string;
+  createdAt: string | null;
+}
+export interface WorkflowActiveDocumentsResponse { items: WorkflowActiveDocument[]; total: number; }
+
 export interface WorkflowAuditEvent { event: string; at: string; by: string; }
 export interface WorkflowAuditResponse { items: WorkflowAuditEvent[]; }
 export interface WorkflowValidationError { code: string; message: string; }
