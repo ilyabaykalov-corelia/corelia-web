@@ -62,7 +62,7 @@ const primaryItems = [
   { label: 'Коллекции', icon: CollectionsBookmarkOutlinedIcon },
   { label: 'Справочники', icon: MenuBookOutlinedIcon },
   { label: 'Отчеты', icon: BarChartOutlinedIcon },
-  { label: 'Администрирование', icon: AdminPanelSettingsOutlinedIcon, route: '/admin/workflows' },
+  { label: 'Администрирование', icon: AdminPanelSettingsOutlinedIcon, route: '/admin/workflows', adminOnly: true },
 ];
 
 /**
@@ -88,6 +88,7 @@ export function AppLayout({ children }: PropsWithChildren) {
   const documentTypes = useAppSelector((state) => state.documents.documentTypes);
   const filters = useAppSelector((state) => state.documents.filters);
   const authUser = useAppSelector((state) => state.auth.user);
+  const roles = useAppSelector((state) => state.auth.session?.roles ?? []);
   const location = useLocation();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -106,6 +107,7 @@ export function AppLayout({ children }: PropsWithChildren) {
   const hasRegistryDocuments = documentTypes.length > 0;
   const activeRegistryYear = registryYears.find((year) => filters.dateFrom === `${year}-01-01` && filters.dateTo === `${year}-12-31`);
   const allDocumentsActive = location.pathname === '/documents' && !filters.documentTypeId && activeRegistryYear === undefined;
+  const visiblePrimaryItems = primaryItems.filter((item) => !item.adminOnly || roles.includes('corelia-admin'));
 
   useEffect(() => {
     if (!user) void dispatch(fetchCurrentUser());
@@ -248,7 +250,7 @@ export function AppLayout({ children }: PropsWithChildren) {
       </Stack>
 
       <List sx={{ px: 0, py: 1.25, flex: 1, overflowY: 'auto' }}>
-        {primaryItems.map((item) => {
+        {visiblePrimaryItems.map((item) => {
           if (item.route === '/documents/new' && location.pathname === '/documents/new') return null;
 
           const active = item.route === '/'
