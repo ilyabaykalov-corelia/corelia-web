@@ -21,6 +21,7 @@ export function WorkflowAdminPage() {
   const [validationErrors, setValidationErrors] = useState<WorkflowValidationError[]>([]);
   const [validationSuccess, setValidationSuccess] = useState<string | null>(null);
   const [readOnly, setReadOnly] = useState(false);
+  const [editingPublished, setEditingPublished] = useState(false);
   const [runtime, setRuntime] = useState<WorkflowRuntime | null>(null);
   const [activeDocuments, setActiveDocuments] = useState<WorkflowActiveDocument[] | null>(null);
   const [activeDocumentsTitle, setActiveDocumentsTitle] = useState('Активные экземпляры');
@@ -39,7 +40,7 @@ export function WorkflowAdminPage() {
     setSaving(true); setError(null);
     void workflowsApi.create(newKey, newName).then((created) => {
       setDraft(created); setDraftXml(created.bpmnXml); setNewKey(''); setNewName('');
-      setReadOnly(false); setRuntime(null);
+      setReadOnly(false); setEditingPublished(false); setRuntime(null);
     }).catch(showError).finally(() => setSaving(false));
   };
   const loadAudit = () => {
@@ -55,7 +56,7 @@ export function WorkflowAdminPage() {
     }).catch(showError).finally(() => setSaving(false));
   };
   const openWorkflow = (key: string) => {
-    setSaving(true); setError(null); setRuntime(null);
+    setSaving(true); setError(null); setRuntime(null); setEditingPublished(false);
     void workflowsApi.view(key).then((loaded: WorkflowView) => {
       setDraft(loaded); setDraftXml(loaded.bpmnXml); setReadOnly(loaded.readOnly); setAudit([]); setValidationErrors([]); setValidationSuccess(null);
       return loaded.readOnly ? workflowsApi.runtime(loaded.key).then(setRuntime) : undefined;
@@ -81,13 +82,18 @@ export function WorkflowAdminPage() {
   const publishDraft = () => {
     if (!draft) return;
     setSaving(true); setError(null); setValidationErrors([]); setValidationSuccess(null);
-    void workflowsApi.saveDraft(draft.key, draft.name, draftXml).then((saved) => {
-      setDraft(saved); return workflowsApi.publishDraft(saved.key);
-    }).then((result) => {
+    const publishing = editingPublished
+      ? workflowsApi.publishDraft(draft.key, { name: draft.name, bpmnXml: draftXml, expectedPublishedVersion: (draft as WorkflowView).publishedVersion })
+      : workflowsApi.saveDraft(draft.key, draft.name, draftXml).then((saved) => {
+          setDraft(saved); return workflowsApi.publishDraft(saved.key);
+        });
+    void publishing.then((result) => {
       setValidationErrors(result.errors ?? []);
       if (result.published) {
         setValidationSuccess(`Процесс опубликован: версия ${result.version}.`);
-        return reloadDefinitions();
+        return Promise.all([reloadDefinitions(), workflowsApi.view(draft.key)]).then(([, current]) => {
+          setDraft(current); setDraftXml(current.bpmnXml); setReadOnly(current.readOnly); setEditingPublished(false);
+        });
       }
       return undefined;
     }).catch(showError).finally(() => setSaving(false));
@@ -143,19 +149,21 @@ export function WorkflowAdminPage() {
       <Stack spacing={1}>
         <Typography variant="h5">Редактор BPMN</Typography>
         {draft ? <>
-          <Typography color="text.secondary">{readOnly ? 'Просмотр BPMN' : 'Черновик'}: {draft.name} ({draft.key})</Typography>
+          <Typography color="text.secondary">{readOnly ? 'Просмотр BPMN' : editingPublished ? `Редактирование версии ${(draft as WorkflowView).publishedVersion}` : 'Черновик'}: {draft.name} ({draft.key})</Typography>
           <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-            {!readOnly && <><Button variant="contained" onClick={saveDraft} disabled={saving || !editEnabled}>Сохранить черновик</Button>
+            {readOnly && <Button variant="contained" onClick={() => { setReadOnly(false); setEditingPublished(true); }} disabled={saving || !editEnabled}>Редактировать</Button>}
+            {!readOnly && !editingPublished && <><Button variant="contained" onClick={saveDraft} disabled={saving || !editEnabled}>Сохранить черновик</Button>
             <Button onClick={validateDraft} disabled={saving || !editEnabled}>Проверить BPMN</Button>
-            <Button onClick={publishDraft} disabled={saving || !editEnabled}>Опубликовать</Button></>}
+            </>}
+            {!readOnly && <Button onClick={publishDraft} disabled={saving || !editEnabled}>Опубликовать</Button>}
             <Button onClick={exportDraft} disabled={saving}>Экспорт BPMN</Button>
-            {!readOnly && <Button component="label" disabled={saving || !editEnabled}>Импорт BPMN<input hidden type="file" accept=".bpmn,.xml,application/xml,text/xml" onChange={(event) => importDraft(event.target.files?.[0])} /></Button>}
+            {!readOnly && !editingPublished && <Button component="label" disabled={saving || !editEnabled}>Импорт BPMN<input hidden type="file" accept=".bpmn,.xml,application/xml,text/xml" onChange={(event) => importDraft(event.target.files?.[0])} /></Button>}
             <Button onClick={loadAudit} disabled={saving}>Журнал</Button>
           </Stack>
           {audit.length > 0 && <Paper variant="outlined" sx={{ p: 1 }}><Typography variant="subtitle2">Журнал процесса</Typography>{audit.map((event) => <Typography key={`${event.event}-${event.at}`} variant="body2">{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(event.at))}: {event.event} — {event.by}</Typography>)}</Paper>}
           {validationSuccess && <Alert severity="success">{validationSuccess}</Alert>}
           {validationErrors.length > 0 && <Alert severity="error">{validationErrors.map((item) => <Typography key={`${item.code}-${item.message}`} variant="body2">{item.message}</Typography>)}</Alert>}
-          {readOnly ? <Alert severity="info">Процесс развёрнут из configuration release или опубликован без черновика; он доступен только для просмотра.</Alert> : !editEnabled && <Alert severity="info">Редактирование BPMN отключено конфигурацией.</Alert>}
+          {readOnly ? <Alert severity="info">Процесс развёрнут из configuration release или опубликован без черновика.</Alert> : !editEnabled && <Alert severity="info">Редактирование BPMN отключено конфигурацией.</Alert>}
           <CoreliaBpmnModeler bpmnXml={draftXml} onChange={readOnly ? undefined : setDraftXml} readOnly={readOnly || !editEnabled}
             activityStats={runtime?.activities} onActivityClick={(activityId) => showActiveDocuments(draft.key, activityId)} />
         </> : <Alert severity="info">Создайте процесс, чтобы открыть его BPMN-черновик.</Alert>}

@@ -8,6 +8,8 @@ export interface WorkflowDefinition {
   lastPublishedAt: string | null;
   publishedBy: string | null;
   activeInstances: number;
+  definitionId: string | null;
+  deploymentId: string | null;
 }
 
 export interface WorkflowDefinitionsResponse {
@@ -28,6 +30,9 @@ export interface WorkflowView {
   name: string;
   bpmnXml: string;
   readOnly: boolean;
+  publishedVersion: number;
+  definitionId: string | null;
+  deploymentId: string | null;
 }
 
 export interface WorkflowActivityRuntime { activityId: string; activeInstances: number; }
@@ -51,4 +56,6 @@ export interface WorkflowPublishResponse extends WorkflowValidationResponse {
   key?: string;
   version?: number;
   publishedAt?: string;
+  definitionId?: string;
+  deploymentId?: string;
 }

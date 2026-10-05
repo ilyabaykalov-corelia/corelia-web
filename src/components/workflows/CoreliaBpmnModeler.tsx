@@ -83,6 +83,9 @@ export function CoreliaBpmnModeler({ bpmnXml, onChange, readOnly = false, activi
   const settings = useRef<HTMLDivElement>(null);
   const modeler = useRef<BpmnModeler | null>(null);
   const importedXml = useRef('');
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   useEffect(() => {
     if (!canvas.current || !properties.current) return undefined;
@@ -96,9 +99,9 @@ export function CoreliaBpmnModeler({ bpmnXml, onChange, readOnly = false, activi
     importedXml.current = '';
     const eventBus = instance.get('eventBus') as { on: (event: string, listener: (event: any) => void) => void };
     eventBus.on('commandStack.changed', () => {
-      if (!onChange) return;
+      if (!onChangeRef.current) return;
       void instance.saveXML({ format: true }).then(({ xml }) => {
-        if (xml) { importedXml.current = xml; onChange(xml); }
+        if (xml) { importedXml.current = xml; onChangeRef.current?.(xml); }
       });
     });
     eventBus.on('selection.changed', (event) => renderCoreliaSettings(settings.current, instance, event.newSelection?.[0]));

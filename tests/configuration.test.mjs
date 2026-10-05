@@ -142,12 +142,12 @@ test('attachment list renders a known uploadedAt value', () => {
   assert.ok(!html.includes('• — •'));
 });
 
-test('workflow API loads runtime badges and active documents by BPMN activity ID', async () => {
+test('workflow API loads runtime badges, active documents and publishes a selected BPMN version', async () => {
   const { workflowsApi } = await server.ssrLoadModule('/src/api/workflows.ts');
   const oldFetch = globalThis.fetch;
   const calls = [];
-  globalThis.fetch = async (url) => {
-    calls.push(String(url));
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), method: init?.method, body: init?.body ? JSON.parse(init.body) : undefined });
     const body = String(url).includes('/runtime')
       ? { activeInstances: 1, activities: [{ activityId: 'UserTask_CheckDocument', activeInstances: 1 }] }
       : { items: [{ id: 'document-1', typeCode: 'PDS_CONTRACT', typeName: 'Договор ПДС', status: 'IN_WORK', statusLabel: 'В работе', createdAt: null }], total: 1 };
@@ -156,9 +156,13 @@ test('workflow API loads runtime badges and active documents by BPMN activity ID
   try {
     const runtime = await workflowsApi.runtime('pds_contract_process');
     const documents = await workflowsApi.activeDocuments('pds_contract_process', 'UserTask_CheckDocument');
+    await workflowsApi.publishDraft('pds_contract_process', { bpmnXml: '<definitions/>', expectedPublishedVersion: 2 });
     assert.equal(runtime.activities[0].activityId, 'UserTask_CheckDocument');
     assert.equal(documents.items[0].id, 'document-1');
-    assert.ok(calls[0].endsWith('/admin/workflows/pds_contract_process/runtime'));
-    assert.ok(calls[1].endsWith('/admin/workflows/pds_contract_process/active-documents?activityId=UserTask_CheckDocument'));
+    assert.ok(calls[0].url.endsWith('/admin/workflows/pds_contract_process/runtime'));
+    assert.ok(calls[1].url.endsWith('/admin/workflows/pds_contract_process/active-documents?activityId=UserTask_CheckDocument'));
+    assert.ok(calls[2].url.endsWith('/api/core/v1/admin/workflows/pds_contract_process/publish'));
+    assert.equal(calls[2].method, 'POST');
+    assert.deepEqual(calls[2].body, { bpmnXml: '<definitions/>', expectedPublishedVersion: 2 });
   } finally { globalThis.fetch = oldFetch; }
 });

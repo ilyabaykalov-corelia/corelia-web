@@ -14,7 +14,7 @@ export const workflowsApi = {
   activeDocuments: (key: string, activityId?: string) => apiClient.get<WorkflowActiveDocumentsResponse>(`${apiRoot}/admin/workflows/${encodeURIComponent(key)}/active-documents${activityId ? `?activityId=${encodeURIComponent(activityId)}` : ''}`),
   saveDraft: (key: string, name: string, bpmnXml: string) => apiClient.put<WorkflowDraft>(`${apiRoot}/admin/workflows/${encodeURIComponent(key)}/draft`, { name, bpmnXml }),
   validateDraft: (key: string) => apiClient.post<WorkflowValidationResponse>(`${apiRoot}/admin/workflows/${encodeURIComponent(key)}/validate`, {}),
-  publishDraft: (key: string) => apiClient.post<WorkflowPublishResponse>(`${apiRoot}/admin/workflows/${encodeURIComponent(key)}/publish`, {}),
+  publishDraft: (key: string, body: Record<string, unknown> = {}) => apiClient.post<WorkflowPublishResponse>(`${apiRoot}/admin/workflows/${encodeURIComponent(key)}/publish`, body),
   importDraft: (key: string, name: string, bpmnXml: string) => apiClient.post<WorkflowDraft>(`${apiRoot}/admin/workflows/${encodeURIComponent(key)}/import`, { name, bpmnXml }),
   exportDraft: (key: string) => apiClient.get<Pick<WorkflowDraft, 'key' | 'name' | 'bpmnXml'>>(`${apiRoot}/admin/workflows/${encodeURIComponent(key)}/export`),
   audit: (key: string) => apiClient.get<WorkflowAuditResponse>(`${apiRoot}/admin/workflows/${encodeURIComponent(key)}/audit`),
