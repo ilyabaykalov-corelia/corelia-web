@@ -14,7 +14,7 @@ const merge = (base: unknown, override: unknown): unknown => {
 export const getClientBranding = () => currentBranding;
 
 /**
- * Загружает build-time сформированный `/branding.json` и накладывает его на defaults.
+ * Загружает runtime `/branding.json` и накладывает его на defaults.
  * Ошибка сети не делает клиент неработоспособным: в runtime остаются defaults Corelia.
  */
 export async function loadClientBranding(): Promise<BrandingConfig> {

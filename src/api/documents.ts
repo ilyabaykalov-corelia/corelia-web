@@ -80,6 +80,10 @@ const downloadAttachment = async (attachment: Attachment) => {
   });
 };
 
+/**
+ * Адаптер endpoint документов и вложений. Методы нормализуют transport-поля,
+ * но не подменяют серверные validation, authorization или concurrency.
+ */
 export const documentsApi = {
   getCurrentUser: () => apiClient.get<CurrentUser>(`${apiRoot}/auth/me`),
   getDocumentTypes: async (): Promise<DocumentTypesResponse> => {

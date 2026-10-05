@@ -33,7 +33,7 @@ import { displayAttribute, validateDocumentAttributes, validateDocumentField } f
 import { createDocument, fetchDocumentTypes, uploadDocumentFiles } from '../store/documentsSlice';
 import { documentsApi } from '../api/documents';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import type { CreateDocumentRequest, AttributeValue, DocumentAttributes, DocumentType } from '../types/document';
+import { formFields, type CreateDocumentRequest, type AttributeValue, type DocumentAttributes, type DocumentType } from '../types/document';
 
 const initialForm: CreateDocumentRequest = { documentTypeId: '', attributes: {} };
 
@@ -98,9 +98,10 @@ export function DocumentCreatePage() {
   };
   const touchCurrentStep = () => {
     if (!selectedDocumentType) return;
-    setTouchedFields(current => new Set([...current, ...selectedDocumentType.ui.fields]));
+    const fields = formFields(selectedDocumentType, 'createForm');
+    setTouchedFields(current => new Set([...current, ...fields]));
     const errors: Record<string, string> = {};
-    for (const field of selectedDocumentType.ui.fields) {
+    for (const field of fields) {
       const error = validateDocumentField(field, form.attributes[field], selectedDocumentType);
       if (error) errors[field] = error;
     }
@@ -117,8 +118,11 @@ export function DocumentCreatePage() {
     if (files.length + incomingFiles.length > selectedDocumentType.attachments.maxCount) { setValidationError('Превышено допустимое количество вложений'); return; }
     const extension = (file: File) => file.name.split('.').pop()?.toLowerCase() ?? '';
     const invalidFiles = incomingFiles.filter((file) => Boolean(attachmentPolicy?.allowedExtensions.length) && !attachmentPolicy!.allowedExtensions.includes(extension(file)));
+    const invalidMimeTypes = incomingFiles.filter((file) => Boolean(attachmentPolicy?.allowedMimeTypes?.length) && !attachmentPolicy!.allowedMimeTypes.includes(file.type.toLowerCase()));
     const oversizedFiles = incomingFiles.filter((file) => file.size > (attachmentPolicy?.maxSizeBytes ?? 0));
-    const acceptedFiles = incomingFiles.filter((file) => (!attachmentPolicy?.allowedExtensions.length || attachmentPolicy.allowedExtensions.includes(extension(file))) && file.size <= (attachmentPolicy?.maxSizeBytes ?? 0));
+    const acceptedFiles = incomingFiles.filter((file) => (!attachmentPolicy?.allowedExtensions.length || attachmentPolicy.allowedExtensions.includes(extension(file)))
+      && (!attachmentPolicy?.allowedMimeTypes?.length || attachmentPolicy.allowedMimeTypes.includes(file.type.toLowerCase()))
+      && file.size <= (attachmentPolicy?.maxSizeBytes ?? 0));
 
     setFiles((current) => {
       const keys = new Set(current.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
@@ -127,6 +131,8 @@ export function DocumentCreatePage() {
 
     if (invalidFiles.length > 0) {
       setValidationError(`Не поддерживается формат: ${invalidFiles.map((file) => file.name).join(', ')}.`);
+    } else if (invalidMimeTypes.length > 0) {
+      setValidationError(`Не поддерживается Content-Type: ${invalidMimeTypes.map((file) => file.type || file.name).join(', ')}.`);
     } else if (oversizedFiles.length > 0) {
       setValidationError(`Превышен допустимый размер файла: ${oversizedFiles.map((file) => file.name).join(', ')}`);
     } else {
@@ -252,7 +258,7 @@ export function DocumentCreatePage() {
                   {availableDocumentTypes.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
                 </TextField>
               </FormField>
-              {selectedDocumentType && <DocumentFields definition={selectedDocumentType} value={form.attributes} onChange={updateField} onBlur={touchField} errors={fieldErrors} disabled={saving} />}
+              {selectedDocumentType && <DocumentFields definition={selectedDocumentType} fields={formFields(selectedDocumentType, 'createForm')} value={form.attributes} onChange={updateField} onBlur={touchField} errors={fieldErrors} disabled={saving} />}
             </Box>
           </SectionPanel>
         )}

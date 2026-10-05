@@ -1,15 +1,12 @@
-# Документация React
+# Документация Corelia Web
 
-Актуализировано по локальным исходникам 16 сентября 2026 года.
+`corelia-web` — отдельный React/Vite-клиент Corelia, а не Compose service. Он
+использует публичный gateway API и runtime branding, не обращается к data,
+workflow, attachment service или S3 напрямую.
 
-1. [Продукт](product.md): сценарии, виды документов и ограничения UI.
-2. [Реализация](implementation.md): состояние, API, формы, файлы и навигация по исходникам.
-3. [Разработка](development.md): команды и проверка пользовательских сценариев.
-4. [Инструкции агента](../AGENTS.md): границы изменений.
+1. [Продукт](product.md) — реализованные пользовательские сценарии и границы.
+2. [Реализация](implementation.md) — маршруты, API-клиенты, сессия и состояние.
+3. [Разработка](development.md) — команды и применимые проверки.
 
-Смежные источники: [Corelia API](../../docs/api.md) и [версии документов](../../docs/document-versioning.md). Они находятся в родительском репозитории Corelia.
-
-Документы описывают текущий код. Установка соответствующей версии на стенде и результаты прикладных проверок требуют отдельного подтверждения. Историю изменений искать в Git, а не считать этот обзор журналом авторства.
-# Branding
-
-Клиент использует defaults из `src/branding.default.json` и необязательный внешний input `CORELIA_BRANDING_DIR`. Без него `npm run build` создаёт универсальный Corelia frontend; явная невалидная папка или битый JSON завершают build с диагностикой. Полный формат и merge semantics: [../../docs/branding.md](../../docs/branding.md).
+Смежные контракты: [API Corelia](../../docs/api.md),
+[configuration](../../docs/configuration.md), [branding](../../docs/branding.md).

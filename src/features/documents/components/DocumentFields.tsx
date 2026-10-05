@@ -3,12 +3,12 @@ import { FormField } from '../../../components/common/FormField';
 import type { AttributeValue, DocumentAttributes, DocumentType } from '../../../types/document';
 import { applyInputMask } from '../utils/inputMask';
 
-export function DocumentFields({ definition, value, onChange, onBlur, errors = {}, disabled = false }: {
+export function DocumentFields({ definition, value, onChange, onBlur, errors = {}, disabled = false, fields }: {
   definition: DocumentType; value: DocumentAttributes;
   onChange: (field: string, value: AttributeValue) => void; onBlur?: (field: string) => void;
-  errors?: Record<string, string>; disabled?: boolean;
+  errors?: Record<string, string>; disabled?: boolean; fields?: string[];
 }) {
-  return <>{definition.ui.fields.map(name => {
+  return <>{(fields ?? definition.ui.fields).map(name => {
     const field = definition.schema.properties[name];
     const label = field.title || name;
     const options = field.enum ?? (field.type === 'boolean' ? [true, false] : undefined);

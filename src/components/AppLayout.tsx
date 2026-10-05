@@ -62,7 +62,7 @@ const primaryItems = [
   { label: 'Коллекции', icon: CollectionsBookmarkOutlinedIcon },
   { label: 'Справочники', icon: MenuBookOutlinedIcon },
   { label: 'Отчеты', icon: BarChartOutlinedIcon },
-  { label: 'Администрирование', icon: AdminPanelSettingsOutlinedIcon },
+  { label: 'Администрирование', icon: AdminPanelSettingsOutlinedIcon, route: '/admin/workflows' },
 ];
 
 /**

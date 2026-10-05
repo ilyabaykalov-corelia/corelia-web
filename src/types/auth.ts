@@ -1,3 +1,4 @@
+/** Представление пользователя, возвращаемое OIDC-клиентом и gateway без секретов токена. */
 export interface AuthUser {
   id: string;
   login: string;
@@ -5,6 +6,7 @@ export interface AuthUser {
   email?: string;
 }
 
+/** Сессия только в памяти вкладки; её нельзя сериализовать в persistent browser storage. */
 export interface AuthSession {
   accessToken: string;
   tokenType: string;

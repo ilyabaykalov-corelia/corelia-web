@@ -3,6 +3,7 @@ import type { DocumentApprovalRequest, DocumentRecord, DocumentWorkflowAction } 
 export type TaskStatus = 'NEW' | 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'ABORTED';
 export type TaskQueue = 'MY' | 'AVAILABLE';
 
+/** Provider-neutral задача, отображаемая из публичного Corelia API. */
 export interface PlatformTask {
   id: string;
   type?: string;
@@ -30,6 +31,7 @@ export interface TaskSearchResponse {
   total: number;
 }
 
+/** Итог групповой операции: частичный успех выражается разными наборами id. */
 export interface TaskOperationResponse {
   successIds?: string[];
   failedIds?: string[];

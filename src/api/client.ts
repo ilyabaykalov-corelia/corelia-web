@@ -10,8 +10,10 @@ const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const defaultBaseUrl = 'http://localhost:7170';
 const apiBaseUrl = (configuredBaseUrl === undefined ? defaultBaseUrl : configuredBaseUrl).replace(/\/$/, '');
 
+/** Строит URL gateway, сохраняя относительный путь публичного API. */
 export const buildApiUrl = (path: string) => `${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 
+/** Ошибка HTTP gateway с сохранённым status для UI-ветвления, включая 401 и 409. */
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -69,6 +71,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+/**
+ * Клиент JSON/form-data публичного gateway. При 401 выполняет не более одного
+ * обновления токена; скачивание бинарного файла использует отдельный путь.
+ */
 export const apiClient = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: unknown) =>
