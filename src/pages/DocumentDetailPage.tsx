@@ -191,6 +191,9 @@ export function DocumentDetailPage() {
 
 	const definition = documentTypes.find(item => item.id === document.documentTypeId);
 	const documentTypeName = definition?.name || document.documentType;
+	const visibleHistory = selectedVersion === null
+		? history
+		: history.filter(entry => entry.documentVersion === undefined || entry.documentVersion <= selectedVersion);
 	const processSteps: ProcessStep[] = [{ title: document.documentStatus, detail: document.workflow?.executor?.taskTitle || 'Состояние документа', state: document.workflowCompleted ? 'done' : 'active' }];
 	const actionMenuOpen = Boolean(actionAnchorEl);
 	const availableActions = document.workflow?.availableActions ?? [];
@@ -467,10 +470,10 @@ export function DocumentDetailPage() {
 			{ selectedTab === 2 && <SectionPanel title="История изменений">
 				{ historyLoading && <Stack direction="row" spacing={ 1 } sx={ { alignItems: 'center' } }><CircularProgress size={ 18 }/><Typography>Загрузка истории...</Typography></Stack> }
 				{ historyError && <Alert severity="error">Не удалось загрузить историю: { historyError }</Alert> }
-				{ !historyLoading && !historyError && history.length === 0 && <Typography color="text.secondary">История изменений отсутствует</Typography> }
-				{ !historyLoading && !historyError && history.length > 0 && <TableContainer component={ Paper } variant="outlined"><Table size="small" aria-label="История документа">
+				{ !historyLoading && !historyError && visibleHistory.length === 0 && <Typography color="text.secondary">История изменений отсутствует</Typography> }
+				{ !historyLoading && !historyError && visibleHistory.length > 0 && <TableContainer component={ Paper } variant="outlined"><Table size="small" aria-label="История документа">
 					<TableHead><TableRow><TableCell sx={ { width: 170 } }>Дата и время</TableCell><TableCell sx={ { width: 150 } }>Пользователь</TableCell><TableCell>Изменение</TableCell><TableCell sx={ { width: 130 } }>Версия документа</TableCell></TableRow></TableHead>
-					<TableBody>{ history.map(entry => <TableRow key={ entry.id } hover>
+					<TableBody>{ visibleHistory.map(entry => <TableRow key={ entry.id } hover>
 						<TableCell>{ formatDateTime(entry.timestamp) }</TableCell><TableCell>{ entry.userLogin || 'Система' }</TableCell>
 						<TableCell><Typography sx={ { fontSize: 12.5 } }>{ historyDescription(entry) }</Typography>{ entry.changes?.map(change => <Typography key={ change.field } color="text.secondary" sx={ { fontSize: 12, whiteSpace: 'pre-wrap', mt: 0.25 } }>«{ change.fieldLabel }»: { valueText(change.oldValue) } → { valueText(change.newValue) }</Typography>) }</TableCell>
 						<TableCell>{ entry.documentVersion ?? '—' }</TableCell>
