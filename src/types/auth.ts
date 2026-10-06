@@ -12,5 +12,6 @@ export interface AuthSession {
   tokenType: string;
   expiresIn: number;
   expiresAt: number;
+  roles: string[];
   user: AuthUser;
 }

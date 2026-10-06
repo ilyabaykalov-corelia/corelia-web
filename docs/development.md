@@ -17,6 +17,10 @@ fallback web-сервера на `index.html` и корректный CORS gatew
 `./corelia.sh build --config-dir <package> --release-name <release>`.
 Собранный `/branding.json` и ресурсы остаются в публичной директории при
 `npm run dev`; отдельная переменная окружения для запуска dev-сервера не нужна.
+Запуск или перезапуск через `./corelia.sh start` / `restart` всегда
+пересобирает web-клиент с branding выбранного release. Обычный `npm run build`
+без `CORELIA_RUNTIME_CONFIG` предназначен для generic Corelia и возвращает
+стандартный branding.
 
 ```bash
 npm run lint

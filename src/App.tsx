@@ -22,6 +22,11 @@ function ProtectedApp({ children }: PropsWithChildren) {
   return <AppLayout>{children}</AppLayout>;
 }
 
+function AdminOnly({ children }: PropsWithChildren) {
+  const session = useAppSelector((state) => state.auth.session);
+  return session?.roles.includes('corelia-admin') ? <>{children}</> : <Navigate to="/" replace />;
+}
+
 export default function App() {
   const dispatch = useAppDispatch();
   const [authInitialized, setAuthInitialized] = useState(false);
@@ -64,7 +69,7 @@ export default function App() {
       <Route path="/tasks" element={<Navigate to="/tasks/my" replace />} />
       <Route path="/tasks/my" element={<ProtectedApp><TasksListPage queue="MY" /></ProtectedApp>} />
       <Route path="/tasks/available" element={<ProtectedApp><TasksListPage queue="AVAILABLE" /></ProtectedApp>} />
-      <Route path="/admin/workflows" element={<ProtectedApp><WorkflowAdminPage /></ProtectedApp>} />
+      <Route path="/admin/workflows" element={<ProtectedApp><AdminOnly><WorkflowAdminPage /></AdminOnly></ProtectedApp>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
